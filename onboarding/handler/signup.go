@@ -423,6 +423,7 @@ func (e *Signup) GoogleOauthURL(ctx context.Context, req *onboarding.GoogleOauth
 	parameters.Add("response_type", "code")
 	//parameters.Add("state", oauthStateString)
 	URL.RawQuery = parameters.Encode()
+	logger.Info(URL.String())
 	url := URL.String()
 	rsp.Url = url
 	return nil

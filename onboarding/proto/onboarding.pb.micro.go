@@ -49,6 +49,8 @@ type SignupService interface {
 	Recover(ctx context.Context, in *RecoverRequest, opts ...client.CallOption) (*RecoverResponse, error)
 	ResetPassword(ctx context.Context, in *ResetPasswordRequest, opts ...client.CallOption) (*ResetPasswordResponse, error)
 	Track(ctx context.Context, in *TrackRequest, opts ...client.CallOption) (*TrackResponse, error)
+	GoogleOauthURL(ctx context.Context, in *GoogleOauthURLRequest, opts ...client.CallOption) (*GoogleOauthURLResponse, error)
+	GoogleOauthCallback(ctx context.Context, in *GoogleOauthCallbackRequest, opts ...client.CallOption) (*GoogleOauthCallbackResponse, error)
 }
 
 type signupService struct {
@@ -113,6 +115,26 @@ func (c *signupService) Track(ctx context.Context, in *TrackRequest, opts ...cli
 	return out, nil
 }
 
+func (c *signupService) GoogleOauthURL(ctx context.Context, in *GoogleOauthURLRequest, opts ...client.CallOption) (*GoogleOauthURLResponse, error) {
+	req := c.c.NewRequest(c.name, "Signup.GoogleOauthURL", in)
+	out := new(GoogleOauthURLResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *signupService) GoogleOauthCallback(ctx context.Context, in *GoogleOauthCallbackRequest, opts ...client.CallOption) (*GoogleOauthCallbackResponse, error) {
+	req := c.c.NewRequest(c.name, "Signup.GoogleOauthCallback", in)
+	out := new(GoogleOauthCallbackResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Signup service
 
 type SignupHandler interface {
@@ -123,6 +145,8 @@ type SignupHandler interface {
 	Recover(context.Context, *RecoverRequest, *RecoverResponse) error
 	ResetPassword(context.Context, *ResetPasswordRequest, *ResetPasswordResponse) error
 	Track(context.Context, *TrackRequest, *TrackResponse) error
+	GoogleOauthURL(context.Context, *GoogleOauthURLRequest, *GoogleOauthURLResponse) error
+	GoogleOauthCallback(context.Context, *GoogleOauthCallbackRequest, *GoogleOauthCallbackResponse) error
 }
 
 func RegisterSignupHandler(s server.Server, hdlr SignupHandler, opts ...server.HandlerOption) error {
@@ -132,6 +156,8 @@ func RegisterSignupHandler(s server.Server, hdlr SignupHandler, opts ...server.H
 		Recover(ctx context.Context, in *RecoverRequest, out *RecoverResponse) error
 		ResetPassword(ctx context.Context, in *ResetPasswordRequest, out *ResetPasswordResponse) error
 		Track(ctx context.Context, in *TrackRequest, out *TrackResponse) error
+		GoogleOauthURL(ctx context.Context, in *GoogleOauthURLRequest, out *GoogleOauthURLResponse) error
+		GoogleOauthCallback(ctx context.Context, in *GoogleOauthCallbackRequest, out *GoogleOauthCallbackResponse) error
 	}
 	type Signup struct {
 		signup
@@ -162,4 +188,12 @@ func (h *signupHandler) ResetPassword(ctx context.Context, in *ResetPasswordRequ
 
 func (h *signupHandler) Track(ctx context.Context, in *TrackRequest, out *TrackResponse) error {
 	return h.SignupHandler.Track(ctx, in, out)
+}
+
+func (h *signupHandler) GoogleOauthURL(ctx context.Context, in *GoogleOauthURLRequest, out *GoogleOauthURLResponse) error {
+	return h.SignupHandler.GoogleOauthURL(ctx, in, out)
+}
+
+func (h *signupHandler) GoogleOauthCallback(ctx context.Context, in *GoogleOauthCallbackRequest, out *GoogleOauthCallbackResponse) error {
+	return h.SignupHandler.GoogleOauthCallback(ctx, in, out)
 }

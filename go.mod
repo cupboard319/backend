@@ -19,6 +19,7 @@ require (
 	github.com/slack-go/slack v0.6.5
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stripe/stripe-go/v71 v71.28.0
+	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.25.0
 )

@@ -4,12 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/patrickmn/go-cache"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 
 	cproto "github.com/m3o/services/customers/proto"
 	eproto "github.com/m3o/services/emails/proto"
@@ -24,6 +31,17 @@ import (
 	logger "github.com/micro/micro/v3/service/logger"
 	model "github.com/micro/micro/v3/service/model"
 	mstore "github.com/micro/micro/v3/service/store"
+)
+
+var (
+	oauthConfGl = &oauth2.Config{
+		ClientID:     "",
+		ClientSecret: "",
+		RedirectURL:  "http://localhost:9090/callback-gl",
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email"},
+		Endpoint:     google.Endpoint,
+	}
+	oauthStateStringGl = ""
 )
 
 const (
@@ -67,10 +85,20 @@ type sendgridConf struct {
 	RecoveryTemplateID string `json:"recovery_template_id"`
 }
 
+type googleConf struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+}
+
+type oauthConf struct {
+	Google googleConf `json:"google"`
+}
+
 type conf struct {
 	Sendgrid     sendgridConf `json:"sendgrid"`
 	PromoCredit  int64        `json:"promoCredit"`
 	PromoMessage string       `json:"promoMessage"`
+	Oauth        oauthConf    `json:"oauth"`
 }
 
 func NewSignup(srv *service.Service, auth auth.Auth) *Signup {
@@ -86,6 +114,9 @@ func NewSignup(srv *service.Service, auth auth.Auth) *Signup {
 	if len(c.Sendgrid.TemplateID) == 0 {
 		logger.Fatalf("No sendgrid template ID provided")
 	}
+
+	oauthConfGl.ClientID = c.Oauth.Google.ClientID
+	oauthConfGl.ClientSecret = c.Oauth.Google.ClientSecret
 
 	s := &Signup{
 		customerService: cproto.NewCustomersService("customers", srv.Client()),
@@ -377,4 +408,61 @@ func (e *Signup) Track(ctx context.Context,
 		req.Email = oldTrack[0].Email
 	}
 	return e.track.Update(req)
+}
+
+func (e *Signup) GoogleOauthURL(ctx context.Context, req *onboarding.GoogleOauthURLRequest, rsp *onboarding.GoogleOauthURLResponse) error {
+	URL, err := url.Parse(oauthConfGl.Endpoint.AuthURL)
+	if err != nil {
+		return err
+	}
+
+	parameters := url.Values{}
+	parameters.Add("client_id", oauthConfGl.ClientID)
+	parameters.Add("scope", strings.Join(oauthConfGl.Scopes, " "))
+	parameters.Add("redirect_uri", oauthConfGl.RedirectURL)
+	parameters.Add("response_type", "code")
+	//parameters.Add("state", oauthStateString)
+	URL.RawQuery = parameters.Encode()
+	url := URL.String()
+	rsp.Url = url
+	return nil
+}
+
+func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.GoogleOauthCallbackRequest, rsp *onboarding.GoogleOauthCallbackResponse) error {
+	state := req.State
+
+	if state != oauthStateStringGl {
+		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")
+	}
+
+	code := req.Code
+
+	if code == "" {
+		reason := req.ErrorReason
+		if reason == "user_denied" {
+			return fmt.Errorf("user has denied permission")
+		}
+		return fmt.Errorf("code not found")
+	} else {
+		token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
+		if err != nil {
+			return err
+		}
+
+		resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
+		if err != nil {
+			return fmt.Errorf("Get: " + err.Error() + "\n")
+		}
+		defer resp.Body.Close()
+
+		response, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		rsp.Response = string(response)
+		return nil
+	}
+
+	return nil
 }

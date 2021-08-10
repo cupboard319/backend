@@ -460,7 +460,7 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		ClientID:     oauthConfGl.ClientID,
 		ClientSecret: oauthConfGl.ClientSecret,
 		RedirectURL:  "postmessage",
-		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
+		Scopes:       []string{"email", "profile", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
 		Endpoint:     google.Endpoint,
 	}
 	token, err := oau.Exchange(oauth2.NoContext, code)

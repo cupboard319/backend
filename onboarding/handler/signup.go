@@ -38,7 +38,7 @@ var (
 		ClientID:     "",
 		ClientSecret: "",
 		RedirectURL:  "http://127.0.0.1:4200/google-login",
-		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email"},
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
 		Endpoint:     google.Endpoint,
 	}
 	oauthStateStringGl = ""
@@ -461,7 +461,7 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		return fmt.Errorf("failed exchange: %v", err)
 	}
 
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo.profile?access_token=" + url.QueryEscape(token.AccessToken))
 	if err != nil {
 		return fmt.Errorf("Get: " + err.Error() + "\n")
 	}

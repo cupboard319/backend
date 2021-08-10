@@ -455,15 +455,8 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		}
 		return fmt.Errorf("code not found")
 	}
-	// see https://github.com/golang/oauth2/issues/28
-	oau := &oauth2.Config{
-		ClientID:     oauthConfGl.ClientID,
-		ClientSecret: oauthConfGl.ClientSecret,
-		RedirectURL:  "postmessage",
-		Scopes:       []string{"email", "profile", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
-		Endpoint:     google.Endpoint,
-	}
-	token, err := oau.Exchange(oauth2.NoContext, code)
+
+	token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)
 	}

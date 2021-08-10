@@ -116,6 +116,12 @@ func NewSignup(srv *service.Service, auth auth.Auth) *Signup {
 		logger.Fatalf("No sendgrid template ID provided")
 	}
 
+	if c.Oauth.Google.ClientSecret == "" {
+		logger.Warnf("No google oauth client ID")
+	}
+	if c.Oauth.Google.ClientSecret == "" {
+		logger.Warnf("No google oauth client secret")
+	}
 	oauthConfGl.ClientID = c.Oauth.Google.ClientID
 	oauthConfGl.ClientSecret = c.Oauth.Google.ClientSecret
 	if c.Oauth.Google.RedirectURL != "" {

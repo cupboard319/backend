@@ -414,6 +414,7 @@ func (e *Signup) Track(ctx context.Context,
 	return e.track.Update(req)
 }
 
+// GoogleOauthURL returns the url which kicks off the google oauth flow
 func (e *Signup) GoogleOauthURL(ctx context.Context, req *onboarding.GoogleOauthURLRequest, rsp *onboarding.GoogleOauthURLResponse) error {
 	URL, err := url.Parse(oauthConfGl.Endpoint.AuthURL)
 	if err != nil {
@@ -448,26 +449,23 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 			return fmt.Errorf("user has denied permission")
 		}
 		return fmt.Errorf("code not found")
-	} else {
-		token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
-		if err != nil {
-			return err
-		}
-
-		resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
-		if err != nil {
-			return fmt.Errorf("Get: " + err.Error() + "\n")
-		}
-		defer resp.Body.Close()
-
-		response, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		rsp.Response = string(response)
-		return nil
+	}
+	token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
+	if err != nil {
+		return fmt.Errorf("failed exchange: %v", err)
 	}
 
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
+	if err != nil {
+		return fmt.Errorf("Get: " + err.Error() + "\n")
+	}
+	defer resp.Body.Close()
+
+	response, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	rsp.Response = string(response)
 	return nil
 }

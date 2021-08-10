@@ -37,7 +37,7 @@ var (
 	oauthConfGl = &oauth2.Config{
 		ClientID:     "",
 		ClientSecret: "",
-		RedirectURL:  "http://localhost:9090/callback-gl",
+		RedirectURL:  "http://127.0.0.1:4200/google-login",
 		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email"},
 		Endpoint:     google.Endpoint,
 	}
@@ -88,6 +88,7 @@ type sendgridConf struct {
 type googleConf struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
+	RedirectURL  string `json:"redirect_url"`
 }
 
 type oauthConf struct {
@@ -117,6 +118,9 @@ func NewSignup(srv *service.Service, auth auth.Auth) *Signup {
 
 	oauthConfGl.ClientID = c.Oauth.Google.ClientID
 	oauthConfGl.ClientSecret = c.Oauth.Google.ClientSecret
+	if c.Oauth.Google.RedirectURL != "" {
+		oauthConfGl.RedirectURL = c.Oauth.Google.RedirectURL
+	}
 
 	s := &Signup{
 		customerService: cproto.NewCustomersService("customers", srv.Client()),

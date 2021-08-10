@@ -442,7 +442,6 @@ func (e *Signup) GoogleOauthURL(ctx context.Context, req *onboarding.GoogleOauth
 
 func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.GoogleOauthCallbackRequest, rsp *onboarding.GoogleOauthCallbackResponse) error {
 	state := req.State
-
 	if state != oauthStateStringGl {
 		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")
 	}

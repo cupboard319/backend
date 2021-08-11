@@ -488,9 +488,9 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		return fmt.Errorf("no email or name in oauth info")
 	}
 
-	readResp, err := e.customerService.Read(ctx, &cproto.ReadRequest{
+	readResp, err := e.customerService.Read(cont.DefaultContext, &cproto.ReadRequest{
 		Email: email,
-	})
+	}, client.WithAuthToken())
 	if err != nil && strings.Contains(err.Error(), "notfound") {
 		return e.registerOauthUser(ctx, rsp, email, name)
 	}
@@ -502,7 +502,7 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 
 func (e *Signup) registerOauthUser(ctx context.Context, rsp *onboarding.CompleteSignupResponse, email, name string) error {
 	// create entry in customers service
-	crsp, err := e.customerService.Create(ctx, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
+	crsp, err := e.customerService.Create(cont.DefaultContext, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
 	if err != nil {
 		logger.Error(err)
 		return merrors.InternalServerError("onboarding.registerOauthUser", internalErrorMsg)

@@ -23,7 +23,6 @@ message GoogleURLResponse{
 	string url = 1;
 }
 
-
 message GoogleLoginRequest{
 	string state = 1;
 	string code = 2;

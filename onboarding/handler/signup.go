@@ -463,8 +463,8 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		return fmt.Errorf("failed exchange: %v", err)
 	}
 
-	logger.Info("token %v", token)
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo.profile?access_token=" + url.QueryEscape(token.AccessToken))
+	logger.Info("Got token")
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
 	if err != nil {
 		return fmt.Errorf("Get: " + err.Error() + "\n")
 	}

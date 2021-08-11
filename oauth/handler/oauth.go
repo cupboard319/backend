@@ -146,7 +146,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	}
 
 	logger.Info("Got token")
-	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + url.QueryEscape(token.AccessToken))
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo.email?access_token=" + url.QueryEscape(token.AccessToken))
 	if err != nil {
 		return fmt.Errorf("Get: " + err.Error() + "\n")
 	}

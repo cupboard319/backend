@@ -36,7 +36,7 @@ var (
 		ClientID:     "",
 		ClientSecret: "",
 		RedirectURL:  "http://127.0.0.1:4200/google-login",
-		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email"},
+		Scopes:       []string{"https://www.googleapis.com/auth/userinfo.email"},
 		Endpoint:     google.Endpoint,
 	}
 	oauthStateStringGl = ""
@@ -165,9 +165,8 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	}
 
 	email, emailOk := gresp["email"].(string)
-	name, nameOk := gresp["name"].(string)
-	if !emailOk || !nameOk {
-		return fmt.Errorf("no email or name in oauth info")
+	if !emailOk {
+		return fmt.Errorf("no email in oauth info")
 	}
 
 	readResp, err := e.customerService.Read(cont.DefaultContext, &cproto.ReadRequest{
@@ -175,7 +174,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	}, client.WithAuthToken())
 	if err != nil && strings.Contains(err.Error(), "notfound") {
 		logger.Infof("Oauth registering %v", email)
-		return e.registerOauthUser(ctx, rsp, email, name)
+		return e.registerOauthUser(ctx, rsp, email)
 	}
 	if err != nil {
 		return err
@@ -184,7 +183,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
 }
 
-func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.GoogleLoginResponse, email, name string) error {
+func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.GoogleLoginResponse, email string) error {
 	// create entry in customers service
 	crsp, err := e.customerService.Create(cont.DefaultContext, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
 	if err != nil {

@@ -492,11 +492,13 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		Email: email,
 	}, client.WithAuthToken())
 	if err != nil && strings.Contains(err.Error(), "notfound") {
+		logger.Infof("Oauth registering %v", email)
 		return e.registerOauthUser(ctx, rsp, email, name)
 	}
 	if err != nil {
 		return err
 	}
+	logger.Infof("Oauth logging in %v", email)
 	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
 }
 

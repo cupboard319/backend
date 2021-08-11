@@ -474,6 +474,7 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 	if err != nil {
 		return err
 	}
+	logger.Infof(string(response))
 
 	rsp.Response = string(response)
 	return nil

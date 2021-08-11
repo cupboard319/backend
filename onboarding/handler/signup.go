@@ -440,7 +440,7 @@ func (e *Signup) GoogleOauthURL(ctx context.Context, req *onboarding.GoogleOauth
 	return nil
 }
 
-func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.GoogleOauthCallbackRequest, rsp *onboarding.GoogleOauthCallbackResponse) error {
+func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.GoogleOauthCallbackRequest, rsp *onboarding.CompleteSignupResponse) error {
 	state := req.State
 	if state != oauthStateStringGl {
 		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")
@@ -474,8 +474,97 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 	if err != nil {
 		return err
 	}
-	//logger.Infof(string(response))
 
-	rsp.Response = string(response)
+	// TODO there must be a proper lib api for this
+	gresp := map[string]interface{}{}
+	err = json.Unmarshal(response, &gresp)
+	if err != nil {
+		return err
+	}
+
+	email, emailOk := gresp["email"].(string)
+	name, nameOk := gresp["name"].(string)
+	if !emailOk || !nameOk {
+		return fmt.Errorf("no email or name in oauth info")
+	}
+
+	readResp, err := e.customerService.Read(ctx, &cproto.ReadRequest{
+		Email: email,
+	})
+	if err != nil && strings.Contains(err.Error(), "notfound") {
+		return e.registerOauthUser(ctx, rsp, email, name)
+	}
+	if err != nil {
+		return err
+	}
+	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
+}
+
+func (e *Signup) registerOauthUser(ctx context.Context, rsp *onboarding.CompleteSignupResponse, email, name string) error {
+	// create entry in customers service
+	crsp, err := e.customerService.Create(ctx, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
+	if err != nil {
+		logger.Error(err)
+		return merrors.InternalServerError("onboarding.registerOauthUser", internalErrorMsg)
+	}
+
+	secret := uuid.New().String()
+	_, err = e.auth.Generate(crsp.Customer.Id,
+		auth.WithScopes("customer"),
+		auth.WithSecret(secret),
+		auth.WithIssuer(microNamespace),
+		auth.WithName(email),
+		auth.WithType("customer"))
+	if err != nil {
+		logger.Errorf("Error generating token for %v: %v", crsp.Customer.Id, err)
+		return merrors.InternalServerError("onboarding.registerOauthUser", internalErrorMsg)
+	}
+
+	t, err := e.auth.Token(auth.WithCredentials(crsp.Customer.Id, secret), auth.WithTokenIssuer(microNamespace))
+	if err != nil {
+		logger.Errorf("Can't get token for %v: %v", crsp.Customer.Id, err)
+		return merrors.InternalServerError("onboarding.registerOauthUser", internalErrorMsg)
+	}
+	rsp.AuthToken = &onboarding.AuthToken{
+		AccessToken:  t.AccessToken,
+		RefreshToken: t.RefreshToken,
+		Expiry:       t.Expiry.Unix(),
+		Created:      t.Created.Unix(),
+	}
+	rsp.CustomerID = crsp.Customer.Id
+	rsp.Namespace = microNamespace
+	if err := mevents.Publish(topic, &onboarding.Event{Type: "newSignup", NewSignup: &onboarding.NewSignupEvent{Email: email, Id: crsp.Customer.Id}}); err != nil {
+		logger.Warnf("Error publishing %s", err)
+	}
+	return nil
+}
+
+func (e *Signup) loginOauthUser(ctx context.Context, rsp *onboarding.CompleteSignupResponse, id, email string) error {
+	secret := uuid.New().String()
+	_, err := e.accounts.ChangeSecret(cont.DefaultContext, &authproto.ChangeSecretRequest{
+		Id:        email,
+		NewSecret: secret,
+		Options: &authproto.Options{
+			Namespace: microNamespace,
+		},
+	}, client.WithAuthToken())
+	if err != nil {
+		return err
+	}
+
+	t, err := e.auth.Token(auth.WithCredentials(id, secret), auth.WithTokenIssuer(microNamespace))
+	if err != nil {
+		logger.Errorf("Can't get token for %v: %v", id, err)
+		return merrors.InternalServerError("onboarding.loginOauthUser", internalErrorMsg)
+	}
+	rsp.AuthToken = &onboarding.AuthToken{
+		AccessToken:  t.AccessToken,
+		RefreshToken: t.RefreshToken,
+		Expiry:       t.Expiry.Unix(),
+		Created:      t.Created.Unix(),
+	}
+	rsp.CustomerID = id
+	rsp.Namespace = microNamespace
+
 	return nil
 }

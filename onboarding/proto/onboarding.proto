@@ -13,7 +13,7 @@ service Signup {
 	rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
 	rpc Track(TrackRequest) returns (TrackResponse);
 	rpc GoogleOauthURL(GoogleOauthURLRequest) returns (GoogleOauthURLResponse);
-	rpc GoogleOauthCallback(GoogleOauthCallbackRequest) returns (GoogleOauthCallbackResponse);
+	rpc GoogleOauthCallback(GoogleOauthCallbackRequest) returns (CompleteSignupResponse);
 }
 
 message SendVerificationEmailRequest {
@@ -104,5 +104,7 @@ message GoogleOauthCallbackRequest{
 }
 
 message GoogleOauthCallbackResponse{
-	string response = 1;
+	AuthToken authToken = 1;
+	string customerID = 2;
+	string namespace = 3;
 }

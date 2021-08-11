@@ -172,7 +172,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	readResp, err := e.customerService.Read(cont.DefaultContext, &cproto.ReadRequest{
 		Email: email,
 	}, client.WithAuthToken())
-	if err != nil && strings.Contains(err.Error(), "notfound") {
+	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
 		return e.registerOauthUser(ctx, rsp, email)
 	}

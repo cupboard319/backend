@@ -122,7 +122,7 @@ func (e *Oauth) GoogleURL(ctx context.Context, req *oauth.GoogleURLRequest, rsp 
 	return nil
 }
 
-func (e *Oauth) GoogleOauthCallback(ctx context.Context, req *oauth.GoogleLoginRequest, rsp *oauth.GoogleLoginResponse) error {
+func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, rsp *oauth.GoogleLoginResponse) error {
 	state := req.State
 	if state != oauthStateStringGl {
 		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")

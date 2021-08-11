@@ -9,7 +9,6 @@ require (
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2
-	github.com/hashicorp/golang-lru v0.5.4
 	github.com/micro/micro/plugin/prometheus/v3 v3.0.0-20210806112317-b9d708632505
 	github.com/micro/micro/v3 v3.3.1-0.20210626195628-024eaf4d288f
 	github.com/onsi/gomega v1.10.5

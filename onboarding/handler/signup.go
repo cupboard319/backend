@@ -456,6 +456,8 @@ func (e *Signup) GoogleOauthCallback(ctx context.Context, req *onboarding.Google
 		return fmt.Errorf("code not found")
 	}
 
+	logger.Infof(code)
+
 	token, err := oauthConfGl.Exchange(oauth2.NoContext, code, oauth2.AccessTypeOffline)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)

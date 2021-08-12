@@ -249,7 +249,7 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 
 	logger.Infof(code)
 
-	token, err := oauthConfGithub.Exchange(oauth2.NoContext, code, oauth2.AccessTypeOffline)
+	token, err := oauthConfGithub.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)
 	}

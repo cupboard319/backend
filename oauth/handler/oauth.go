@@ -169,7 +169,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 
 	logger.Infof(code)
 
-	token, err := oauthConfGl.Exchange(oauth2.NoContext, code)
+	token, err := oauthConfGithub.Exchange(oauth2.NoContext, code)
 	if err != nil {
 		return fmt.Errorf("failed exchange: %v", err)
 	}

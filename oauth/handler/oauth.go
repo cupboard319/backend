@@ -219,9 +219,9 @@ func (e *Oauth) GithubURL(ctx context.Context, req *oauth.GithubURLRequest, rsp 
 	}
 
 	parameters := url.Values{}
-	parameters.Add("client_id", oauthConfGl.ClientID)
-	parameters.Add("scope", strings.Join(oauthConfGl.Scopes, " "))
-	parameters.Add("redirect_uri", oauthConfGl.RedirectURL)
+	parameters.Add("client_id", oauthConfGithub.ClientID)
+	parameters.Add("scope", strings.Join(oauthConfGithub.Scopes, " "))
+	parameters.Add("redirect_uri", oauthConfGithub.RedirectURL)
 	parameters.Add("response_type", "code")
 	//parameters.Add("state", oauthStateString)
 	URL.RawQuery = parameters.Encode()

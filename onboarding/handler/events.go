@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 
@@ -9,7 +8,6 @@ import (
 	onboarding "github.com/m3o/services/onboarding/proto"
 	pevents "github.com/m3o/services/pkg/events"
 	"github.com/micro/micro/v3/service"
-	"github.com/micro/micro/v3/service/client"
 	"github.com/micro/micro/v3/service/config"
 	mevents "github.com/micro/micro/v3/service/events"
 	logger "github.com/micro/micro/v3/service/logger"
@@ -53,7 +51,7 @@ func (o *Onboarding) processOnboardingEvents(ev mevents.Event) error {
 		return nil
 	}
 	switch ve.Type {
-	case "XXNOTUSEDXX": // TODO reinstate some signup related processing
+	case "newSignup": // TODO remove me
 		if err := o.processSignup(ve.NewSignup); err != nil {
 			logger.Errorf("Error processing signup event %s", err)
 			return err
@@ -66,12 +64,5 @@ func (o *Onboarding) processOnboardingEvents(ev mevents.Event) error {
 }
 
 func (o *Onboarding) processSignup(ev *onboarding.NewSignupEvent) error {
-	// add a promo credit to their balance
-	_, err := o.balSvc.Increment(context.Background(), &balance.IncrementRequest{
-		CustomerId: ev.Id,
-		Delta:      o.promoCredit,
-		Visible:    true,
-		Reference:  o.promoMessage,
-	}, client.WithAuthToken())
-	return err
+	return nil
 }

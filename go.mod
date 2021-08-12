@@ -6,7 +6,7 @@ require (
 	github.com/go-redis/redis/v8 v8.5.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang/protobuf v1.4.3
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-github/v38 v38.1.0
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/micro/micro/plugin/prometheus/v3 v3.0.0-20210806112317-b9d708632505

@@ -43,7 +43,9 @@ func NewOauthEndpoints() []*api.Endpoint {
 
 type OauthService interface {
 	GoogleURL(ctx context.Context, in *GoogleURLRequest, opts ...client.CallOption) (*GoogleURLResponse, error)
-	GoogleLogin(ctx context.Context, in *GoogleLoginRequest, opts ...client.CallOption) (*GoogleLoginResponse, error)
+	GoogleLogin(ctx context.Context, in *GoogleLoginRequest, opts ...client.CallOption) (*LoginResponse, error)
+	GithubURL(ctx context.Context, in *GithubURLRequest, opts ...client.CallOption) (*GithubURLResponse, error)
+	GithubLogin(ctx context.Context, in *GithubLoginRequest, opts ...client.CallOption) (*LoginResponse, error)
 }
 
 type oauthService struct {
@@ -68,9 +70,29 @@ func (c *oauthService) GoogleURL(ctx context.Context, in *GoogleURLRequest, opts
 	return out, nil
 }
 
-func (c *oauthService) GoogleLogin(ctx context.Context, in *GoogleLoginRequest, opts ...client.CallOption) (*GoogleLoginResponse, error) {
+func (c *oauthService) GoogleLogin(ctx context.Context, in *GoogleLoginRequest, opts ...client.CallOption) (*LoginResponse, error) {
 	req := c.c.NewRequest(c.name, "Oauth.GoogleLogin", in)
-	out := new(GoogleLoginResponse)
+	out := new(LoginResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oauthService) GithubURL(ctx context.Context, in *GithubURLRequest, opts ...client.CallOption) (*GithubURLResponse, error) {
+	req := c.c.NewRequest(c.name, "Oauth.GithubURL", in)
+	out := new(GithubURLResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *oauthService) GithubLogin(ctx context.Context, in *GithubLoginRequest, opts ...client.CallOption) (*LoginResponse, error) {
+	req := c.c.NewRequest(c.name, "Oauth.GithubLogin", in)
+	out := new(LoginResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -82,13 +104,17 @@ func (c *oauthService) GoogleLogin(ctx context.Context, in *GoogleLoginRequest, 
 
 type OauthHandler interface {
 	GoogleURL(context.Context, *GoogleURLRequest, *GoogleURLResponse) error
-	GoogleLogin(context.Context, *GoogleLoginRequest, *GoogleLoginResponse) error
+	GoogleLogin(context.Context, *GoogleLoginRequest, *LoginResponse) error
+	GithubURL(context.Context, *GithubURLRequest, *GithubURLResponse) error
+	GithubLogin(context.Context, *GithubLoginRequest, *LoginResponse) error
 }
 
 func RegisterOauthHandler(s server.Server, hdlr OauthHandler, opts ...server.HandlerOption) error {
 	type oauth interface {
 		GoogleURL(ctx context.Context, in *GoogleURLRequest, out *GoogleURLResponse) error
-		GoogleLogin(ctx context.Context, in *GoogleLoginRequest, out *GoogleLoginResponse) error
+		GoogleLogin(ctx context.Context, in *GoogleLoginRequest, out *LoginResponse) error
+		GithubURL(ctx context.Context, in *GithubURLRequest, out *GithubURLResponse) error
+		GithubLogin(ctx context.Context, in *GithubLoginRequest, out *LoginResponse) error
 	}
 	type Oauth struct {
 		oauth
@@ -105,6 +131,14 @@ func (h *oauthHandler) GoogleURL(ctx context.Context, in *GoogleURLRequest, out 
 	return h.OauthHandler.GoogleURL(ctx, in, out)
 }
 
-func (h *oauthHandler) GoogleLogin(ctx context.Context, in *GoogleLoginRequest, out *GoogleLoginResponse) error {
+func (h *oauthHandler) GoogleLogin(ctx context.Context, in *GoogleLoginRequest, out *LoginResponse) error {
 	return h.OauthHandler.GoogleLogin(ctx, in, out)
+}
+
+func (h *oauthHandler) GithubURL(ctx context.Context, in *GithubURLRequest, out *GithubURLResponse) error {
+	return h.OauthHandler.GithubURL(ctx, in, out)
+}
+
+func (h *oauthHandler) GithubLogin(ctx context.Context, in *GithubLoginRequest, out *LoginResponse) error {
+	return h.OauthHandler.GithubLogin(ctx, in, out)
 }

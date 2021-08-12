@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	githubapi "github.com/google/go-github/v38/github"
 	"github.com/google/uuid"
 	cproto "github.com/m3o/services/customers/proto"
 	eproto "github.com/m3o/services/emails/proto"
@@ -22,6 +23,7 @@ import (
 	mevents "github.com/micro/micro/v3/service/events"
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
 
 	mconfig "github.com/micro/micro/v3/service/config"
@@ -40,6 +42,14 @@ var (
 		Endpoint:     google.Endpoint,
 	}
 	oauthStateStringGl = ""
+
+	oauthConfGithub = &oauth2.Config{
+		ClientID:     "",
+		ClientSecret: "",
+		RedirectURL:  "http://127.0.0.1:4200/github-login",
+		Scopes:       []string{"user:email"},
+		Endpoint:     github.Endpoint,
+	}
 )
 
 const (
@@ -54,8 +64,15 @@ type googleConf struct {
 	RedirectURL  string `json:"redirect_url"`
 }
 
+type githubConf struct {
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectURL  string `json:"redirect_url"`
+}
+
 type oauthConf struct {
 	Google googleConf `json:"google"`
+	Github githubConf `json:"github"`
 }
 
 type Oauth struct {
@@ -92,6 +109,18 @@ func NewOauth(srv *service.Service, auth auth.Auth) *Oauth {
 		oauthConfGl.RedirectURL = c.Google.RedirectURL
 	}
 
+	if c.Github.ClientSecret == "" {
+		logger.Fatal("No google oauth client ID")
+	}
+	if c.Github.ClientSecret == "" {
+		logger.Fatal("No google oauth client secret")
+	}
+	oauthConfGithub.ClientID = c.Github.ClientID
+	oauthConfGithub.ClientSecret = c.Github.ClientSecret
+	if c.Github.RedirectURL != "" {
+		oauthConfGithub.RedirectURL = c.Github.RedirectURL
+	}
+
 	s := &Oauth{
 		customerService: cproto.NewCustomersService("customers", srv.Client()),
 		auth:            auth,
@@ -122,7 +151,7 @@ func (e *Oauth) GoogleURL(ctx context.Context, req *oauth.GoogleURLRequest, rsp 
 	return nil
 }
 
-func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, rsp *oauth.GoogleLoginResponse) error {
+func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, rsp *oauth.LoginResponse) error {
 	state := req.State
 	if state != oauthStateStringGl {
 		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")
@@ -183,7 +212,84 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
 }
 
-func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.GoogleLoginResponse, email string) error {
+func (e *Oauth) GithubURL(ctx context.Context, req *oauth.GithubURLRequest, rsp *oauth.GithubURLResponse) error {
+	URL, err := url.Parse(oauthConfGithub.Endpoint.AuthURL)
+	if err != nil {
+		return err
+	}
+
+	parameters := url.Values{}
+	parameters.Add("client_id", oauthConfGl.ClientID)
+	parameters.Add("scope", strings.Join(oauthConfGl.Scopes, " "))
+	parameters.Add("redirect_uri", oauthConfGl.RedirectURL)
+	parameters.Add("response_type", "code")
+	//parameters.Add("state", oauthStateString)
+	URL.RawQuery = parameters.Encode()
+	logger.Info(URL.String())
+	url := URL.String()
+	rsp.Url = url
+	return nil
+}
+
+func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, rsp *oauth.LoginResponse) error {
+	state := req.State
+	if state != oauthStateStringGl {
+		return fmt.Errorf("invalid oauth state, expected " + oauthStateStringGl + ", got " + state + "\n")
+	}
+
+	code := req.Code
+
+	if code == "" {
+		reason := req.ErrorReason
+		if reason == "user_denied" {
+			return fmt.Errorf("user has denied permission")
+		}
+		return fmt.Errorf("code not found")
+	}
+
+	logger.Infof(code)
+
+	token, err := oauthConfGl.Exchange(oauth2.NoContext, code, oauth2.AccessTypeOffline)
+	if err != nil {
+		return fmt.Errorf("failed exchange: %v", err)
+	}
+
+	logger.Info("Got token", token)
+	con := context.Background()
+	ts := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: token.AccessToken},
+	)
+	tc := oauth2.NewClient(con, ts)
+	githubClient := githubapi.NewClient(tc)
+	emails, _, err := githubClient.Users.ListEmails(ctx, nil)
+	if err != nil {
+		return err
+	}
+	email := ""
+	for _, em := range emails {
+		if em.Primary != nil && *em.Primary {
+			email = *em.Email
+		}
+	}
+	if email == "" {
+		return fmt.Errorf("no github primary email found")
+	}
+
+	readResp, err := e.customerService.Read(cont.DefaultContext, &cproto.ReadRequest{
+		Email: email,
+	}, client.WithAuthToken())
+	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
+		logger.Infof("Oauth registering %v", email)
+		return e.registerOauthUser(ctx, rsp, email)
+	}
+	if err != nil {
+		return err
+	}
+	logger.Infof("Oauth logging in %v", email)
+	return e.loginOauthUser(ctx, rsp, readResp.Customer.Id, email)
+}
+
+func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse, email string) error {
 	// create entry in customers service
 	crsp, err := e.customerService.Create(cont.DefaultContext, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
 	if err != nil {
@@ -222,7 +328,7 @@ func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.GoogleLoginRes
 	return nil
 }
 
-func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.GoogleLoginResponse, id, email string) error {
+func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id, email string) error {
 	secret := uuid.New().String()
 	_, err := e.accounts.ChangeSecret(cont.DefaultContext, &authproto.ChangeSecretRequest{
 		Id:        email,

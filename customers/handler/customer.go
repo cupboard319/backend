@@ -156,7 +156,7 @@ func (c *Customers) MarkVerified(ctx context.Context, request *customer.MarkVeri
 		CallerId: callerID,
 	}
 	if err := mevents.Publish(customer.EventsTopic, ev); err != nil {
-		log.Errorf("Error publishing event %+v", ev)
+		log.Errorf("Error publishing event %+v %s", ev, err)
 	}
 
 	return nil

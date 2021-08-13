@@ -255,11 +255,11 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 	}
 
 	logger.Info("Got token", token)
-	con := context.Background()
+
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token.AccessToken},
 	)
-	tc := oauth2.NewClient(con, ts)
+	tc := oauth2.NewClient(ctx, ts)
 	githubClient := githubapi.NewClient(tc)
 	emails, _, err := githubClient.Users.ListEmails(ctx, nil)
 	if err != nil {
@@ -275,7 +275,7 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 		return fmt.Errorf("no github primary email found")
 	}
 
-	readResp, err := e.customerService.Read(cont.DefaultContext, &cproto.ReadRequest{
+	readResp, err := e.customerService.Read(ctx, &cproto.ReadRequest{
 		Email: email,
 	}, client.WithAuthToken())
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
@@ -291,7 +291,7 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 
 func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse, email string) error {
 	// create entry in customers service
-	crsp, err := e.customerService.Create(cont.DefaultContext, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
+	crsp, err := e.customerService.Create(ctx, &cproto.CreateRequest{Email: email}, client.WithAuthToken())
 	if err != nil {
 		logger.Error(err)
 		return merrors.InternalServerError("oauth.registerOauthUser", internalErrorMsg)
@@ -330,7 +330,7 @@ func (e *Oauth) registerOauthUser(ctx context.Context, rsp *oauth.LoginResponse,
 
 func (e *Oauth) loginOauthUser(ctx context.Context, rsp *oauth.LoginResponse, id, email string) error {
 	secret := uuid.New().String()
-	_, err := e.accounts.ChangeSecret(cont.DefaultContext, &authproto.ChangeSecretRequest{
+	_, err := e.accounts.ChangeSecret(ctx, &authproto.ChangeSecretRequest{
 		Id:        email,
 		NewSecret: secret,
 		Options: &authproto.Options{

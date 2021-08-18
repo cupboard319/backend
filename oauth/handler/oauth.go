@@ -203,6 +203,7 @@ func (e *Oauth) GoogleLogin(ctx context.Context, req *oauth.GoogleLoginRequest, 
 	}, client.WithAuthToken())
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
+		rsp.IsSignup = true
 		return e.registerOauthUser(ctx, rsp, email)
 	}
 	if err != nil {
@@ -280,6 +281,7 @@ func (e *Oauth) GithubLogin(ctx context.Context, req *oauth.GithubLoginRequest, 
 	}, client.WithAuthToken())
 	if err != nil && (strings.Contains(err.Error(), "notfound") || strings.Contains(err.Error(), "not found")) {
 		logger.Infof("Oauth registering %v", email)
+		rsp.IsSignup = true
 		return e.registerOauthUser(ctx, rsp, email)
 	}
 	if err != nil {

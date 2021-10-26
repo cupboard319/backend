@@ -114,7 +114,7 @@ func Push(pat string) {
 				cmd.Dir = targetDir
 				outp, err = cmd.CombinedOutput()
 				if err != nil {
-					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					log.Errorf("   Failed to add files %v: %v", err, string(outp))
 					continue
 				}
 
@@ -122,7 +122,7 @@ func Push(pat string) {
 				cmd.Dir = targetDir
 				outp, err = cmd.CombinedOutput()
 				if err != nil {
-					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					log.Errorf("   Failed to commit files %v: %v", err, string(outp))
 					continue
 				}
 
@@ -130,7 +130,7 @@ func Push(pat string) {
 				cmd.Dir = targetDir
 				outp, err = cmd.CombinedOutput()
 				if err != nil {
-					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					log.Errorf("   Failed to push %v: %v", err, string(outp))
 					continue
 				}
 			}

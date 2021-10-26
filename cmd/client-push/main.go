@@ -75,10 +75,18 @@ func Push(pat string) {
 				)
 				tc := oauth2.NewClient(ctx, ts)
 				client := github.NewClient(tc)
-				// list all organizations for user "willnorris"
-				_, _, err = client.Repositories.Create(ctx, "m3oapis", &github.Repository{
+
+				// there is no way to update a repo so we delete first
+				_, err = client.Repositories.Delete(ctx, "m3oapis", repoName)
+				if err != nil {
+					log.Errorf("   Failed to delete repo %v: %v", repoName, err)
+				}
+				url := "https://m3o.com/" + file.Name()
+				repoDetails := &github.Repository{
 					Name: &repoName,
-				})
+					URL:  &url,
+				}
+				_, _, err = client.Repositories.Create(ctx, "m3oapis", repoDetails)
 				if err != nil {
 					log.Errorf("   Failed to create repo %v: %v", repoName, err)
 				}

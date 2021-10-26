@@ -12,12 +12,15 @@ import (
 
 	"github.com/google/go-github/v39/github"
 	"github.com/google/uuid"
-	"github.com/m3o/backend/client-pusher/handler"
 	log "github.com/micro/micro/v3/service/logger"
 	"golang.org/x/oauth2"
 
 	"github.com/micro/micro/v3/service/runtime/source/git"
 )
+
+var repos = map[string]string{
+	"github.com/m3o/m3o-js": "%v-api-js",
+}
 
 func Push(pat string) {
 	for {
@@ -78,13 +81,58 @@ func Push(pat string) {
 				})
 				if err != nil {
 					log.Errorf("   Failed to create repo %v: %v", repoName, err)
-					continue
 				}
 
 				// git remote add origin https://[USERNAME]:[NEW TOKEN]@github.com/[USERNAME]/[REPO].git
 				// see https://stackoverflow.com/questions/18935539/authenticate-with-github-using-a-token
 
-				exec.Command("git", "remote", "add", "origin", fmt.Sprintf("https://m3o-actions:%v@github.com/m3o-apis/%v.git", pat, repoName))
+				cmd := exec.Command("git", "init")
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
+
+				cmd = exec.Command("git", "checkout", "-b", "main")
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
+
+				cmd = exec.Command("git", "remote", "add", "origin", fmt.Sprintf("https://m3o-actions:%v@github.com/m3oapis/%v.git", pat, repoName))
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
+
+				cmd = exec.Command("git", "add", ".")
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
+
+				cmd = exec.Command("git", "commit", "-am", "Update")
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
+
+				cmd = exec.Command("git", "push", "origin", "-f", "main")
+				cmd.Dir = targetDir
+				outp, err = cmd.CombinedOutput()
+				if err != nil {
+					log.Errorf("   Failed to set origin %v: %v", err, string(outp))
+					continue
+				}
 			}
 		}
 		time.Sleep(24 * time.Hour)
@@ -92,5 +140,5 @@ func Push(pat string) {
 }
 
 func main() {
-	handler.Push(os.Getenv("GITHUB_CLIENT_PAT"))
+	Push(os.Getenv("GITHUB_CLIENT_PAT"))
 }

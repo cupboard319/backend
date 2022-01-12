@@ -11,6 +11,8 @@ service Stripe {
 	rpc DeleteCard(DeleteCardRequest) returns (DeleteCardResponse);
 	rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
 	rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+	rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
+	rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
 }
 
 message CreateCheckoutSessionRequest {
@@ -72,3 +74,17 @@ message GetPaymentResponse {
 	Payment payment = 1;
 }
 
+message SubscribeRequest {
+	string price_id = 1;
+}
+
+message SubscribeResponse {
+	string subscription_id = 1;
+}
+
+message UnsubscribeRequest {
+	string subscription_id = 1;
+}
+
+message UnsubscribeResponse {
+}

@@ -290,8 +290,8 @@ func (s *Stripe) CreateCheckoutSession(ctx context.Context, request *stripepb.Cr
 	if !ok {
 		return errors.Unauthorized("stripe.CreateCheckoutSession", "Unauthorized")
 	}
-	if !request.SaveCard && request.Amount < 500 { // min spend
-		return errors.BadRequest("stripe.CreateCheckoutSession", "Amount must be at least 500")
+	if !request.SaveCard && request.Amount < 1000 { // min spend
+		return errors.BadRequest("stripe.CreateCheckoutSession", "Amount must be at least 1000")
 	}
 
 	c := s.client
@@ -545,13 +545,20 @@ func (s *Stripe) GetPayment(ctx context.Context, request *stripepb.GetPaymentReq
 		return err
 	}
 
-	c, err := s.client.Charges.Get(request.Id, &stripe.ChargeParams{})
+	acc, _, err := mappingForCustomer(ctx, "stripe.ListPayments")
 	if err != nil {
-		// try with the test client
-		c, err = s.testClient.Charges.Get(request.Id, &stripe.ChargeParams{})
-		if err != nil {
-			return err
-		}
+		return err
+	}
+
+	cl := s.client
+	if strings.HasSuffix(acc.Name, "@m3o.com") {
+		cl = s.testClient
+	}
+
+	c, err := cl.Charges.Get(request.Id, &stripe.ChargeParams{})
+	if err != nil {
+		return err
+
 	}
 	response.Payment = &stripepb.Payment{
 		Id:         c.ID,
@@ -559,6 +566,73 @@ func (s *Stripe) GetPayment(ctx context.Context, request *stripepb.GetPaymentReq
 		Currency:   string(c.Currency),
 		Date:       c.Created,
 		ReceiptUrl: c.ReceiptURL,
+	}
+	return nil
+}
+
+func (s *Stripe) Subscribe(ctx context.Context, request *stripepb.SubscribeRequest, response *stripepb.SubscribeResponse) error {
+	method := "stripe.Subscribe"
+	if len(request.PriceId) == 0 {
+		return errors.BadRequest(method, "Missing price ID")
+	}
+	acc, cm, err := mappingForCustomer(ctx, method)
+	if err != nil {
+		return err
+	}
+
+	c := s.client
+	if strings.HasSuffix(acc.Name, "@m3o.com") {
+		c = s.testClient
+	}
+
+	// Subscribe to new product
+	sub, err := c.Subscriptions.New(&stripe.SubscriptionParams{
+		Card:     nil, // TODO will use default card for now, how do we specify the default card in the UI?
+		Customer: stripe.String(cm.StripeID),
+		Items: []*stripe.SubscriptionItemsParams{
+			{
+				Price: stripe.String(request.PriceId),
+			},
+		},
+	})
+	if err != nil {
+		log.Errorf("Error subscribing %s %s %s", cm.StripeID, request.PriceId, err)
+		return err
+	}
+	// Check the state if the charge attempt fails the subscription is in `incomplete` status
+	if sub.Status != stripe.SubscriptionStatusActive {
+		log.Errorf("Failed to create subscription, status is not active %+v", sub)
+		return errors.InternalServerError(method, "Subscription creation failed, check card details")
+	}
+	response.SubscriptionId = sub.ID
+	return nil
+}
+
+func (s *Stripe) Unsubscribe(ctx context.Context, request *stripepb.UnsubscribeRequest, response *stripepb.UnsubscribeResponse) error {
+	method := "stripe.Unsubscribe"
+	if len(request.SubscriptionId) == 0 {
+		return errors.BadRequest(method, "Missing subscription ID")
+	}
+	acc, cm, err := mappingForCustomer(ctx, method)
+	if err != nil {
+		return err
+	}
+
+	c := s.client
+	if strings.HasSuffix(acc.Name, "@m3o.com") {
+		c = s.testClient
+	}
+
+	// Unsubscribe
+	sub, err := c.Subscriptions.Cancel(request.SubscriptionId, &stripe.SubscriptionCancelParams{})
+	if err != nil {
+		log.Errorf("Error unsubscribing %s %s %s", cm.StripeID, request.SubscriptionId, err)
+		return err
+	}
+	// Check the state if the charge attempt fails the subscription is in `incomplete` status
+	if sub.Status != stripe.SubscriptionStatusCanceled {
+		log.Errorf("Failed to cancel subscription, status is not cancelled %+v", sub)
+		return errors.InternalServerError(method, "Subscription cancellation failed")
 	}
 	return nil
 }

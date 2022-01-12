@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package billing;
+
+option go_package = "./proto;billing";
+
+service Billing {
+	// Subscribe to a tier
+	rpc SubscribeTier(SubscribeTierRequest) returns (SubscribeTierResponse) {}
+	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
+	rpc ListTiers(ListTiersRequest) returns (ListTiersResponse) {}
+
+
+	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
+	rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse) {}
+
+
+	// Proxy stripe endpoints
+
+	rpc CreateCheckoutSession(CreateCheckoutSessionRequest) returns (CreateCheckoutSessionResponse);
+	rpc ListCards(ListCardsRequest) returns (ListCardsResponse);
+	rpc ChargeCard(ChargeCardRequest) returns (ChargeCardResponse);
+	rpc DeleteCard(DeleteCardRequest) returns (DeleteCardResponse);
+	rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
+	rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+}
+
+
+message SubscribeTierRequest {
+	string id = 1; // ID of the tier
+}
+
+message SubscribeTierResponse {}
+
+message ListTiersRequest {
+	string currency = 1; // currency code for price
+}
+
+message ListTiersResponse {
+	repeated Tier tiers = 1;
+}
+
+message Tier {
+	string id = 1;
+	string name = 2;
+	string price = 3; // why string? Because then we can do things like $5 per / month
+	string description = 4;
+}
+
+message ListSubscriptionsRequest {
+
+}
+
+message ListSubscriptionsResponse {
+	repeated Subscription subscriptions = 1;
+}
+
+message Subscription {
+	string id = 1;
+	string name = 2;
+	string description = 3;
+	int32 price = 4;
+}
+
+
+message CreateCheckoutSessionRequest {
+	int64 amount = 1;
+	bool save_card = 2;
+}
+
+message CreateCheckoutSessionResponse {
+	string id = 1;
+}
+
+message ListCardsRequest {
+}
+
+message ListCardsResponse {
+	repeated Card cards = 1;
+}
+
+message Card {
+	string id = 1;
+	string last_four = 2;
+	string expires = 3;
+}
+
+message ChargeCardRequest {
+	string id = 1;
+	int64 amount = 2;
+}
+
+message ChargeCardResponse {
+	string client_secret = 1;
+}
+
+message DeleteCardRequest {
+	string id = 1;
+}
+
+message DeleteCardResponse {}
+
+message ListPaymentsRequest {}
+
+message Payment {
+	string id = 1;
+	int64 amount = 2;
+	string currency = 3;
+	int64 date = 4;
+	string receipt_url = 5;
+}
+
+message ListPaymentsResponse {
+	repeated Payment payments = 1;
+}
+
+message GetPaymentRequest {
+	string id = 1;
+}
+
+message GetPaymentResponse {
+	Payment payment = 1;
+}
+

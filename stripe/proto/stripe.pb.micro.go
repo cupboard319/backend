@@ -48,6 +48,8 @@ type StripeService interface {
 	DeleteCard(ctx context.Context, in *DeleteCardRequest, opts ...client.CallOption) (*DeleteCardResponse, error)
 	ListPayments(ctx context.Context, in *ListPaymentsRequest, opts ...client.CallOption) (*ListPaymentsResponse, error)
 	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...client.CallOption) (*GetPaymentResponse, error)
+	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...client.CallOption) (*SubscribeResponse, error)
+	Unsubscribe(ctx context.Context, in *UnsubscribeRequest, opts ...client.CallOption) (*UnsubscribeResponse, error)
 }
 
 type stripeService struct {
@@ -122,6 +124,26 @@ func (c *stripeService) GetPayment(ctx context.Context, in *GetPaymentRequest, o
 	return out, nil
 }
 
+func (c *stripeService) Subscribe(ctx context.Context, in *SubscribeRequest, opts ...client.CallOption) (*SubscribeResponse, error) {
+	req := c.c.NewRequest(c.name, "Stripe.Subscribe", in)
+	out := new(SubscribeResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stripeService) Unsubscribe(ctx context.Context, in *UnsubscribeRequest, opts ...client.CallOption) (*UnsubscribeResponse, error) {
+	req := c.c.NewRequest(c.name, "Stripe.Unsubscribe", in)
+	out := new(UnsubscribeResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Stripe service
 
 type StripeHandler interface {
@@ -131,6 +153,8 @@ type StripeHandler interface {
 	DeleteCard(context.Context, *DeleteCardRequest, *DeleteCardResponse) error
 	ListPayments(context.Context, *ListPaymentsRequest, *ListPaymentsResponse) error
 	GetPayment(context.Context, *GetPaymentRequest, *GetPaymentResponse) error
+	Subscribe(context.Context, *SubscribeRequest, *SubscribeResponse) error
+	Unsubscribe(context.Context, *UnsubscribeRequest, *UnsubscribeResponse) error
 }
 
 func RegisterStripeHandler(s server.Server, hdlr StripeHandler, opts ...server.HandlerOption) error {
@@ -141,6 +165,8 @@ func RegisterStripeHandler(s server.Server, hdlr StripeHandler, opts ...server.H
 		DeleteCard(ctx context.Context, in *DeleteCardRequest, out *DeleteCardResponse) error
 		ListPayments(ctx context.Context, in *ListPaymentsRequest, out *ListPaymentsResponse) error
 		GetPayment(ctx context.Context, in *GetPaymentRequest, out *GetPaymentResponse) error
+		Subscribe(ctx context.Context, in *SubscribeRequest, out *SubscribeResponse) error
+		Unsubscribe(ctx context.Context, in *UnsubscribeRequest, out *UnsubscribeResponse) error
 	}
 	type Stripe struct {
 		stripe
@@ -175,4 +201,12 @@ func (h *stripeHandler) ListPayments(ctx context.Context, in *ListPaymentsReques
 
 func (h *stripeHandler) GetPayment(ctx context.Context, in *GetPaymentRequest, out *GetPaymentResponse) error {
 	return h.StripeHandler.GetPayment(ctx, in, out)
+}
+
+func (h *stripeHandler) Subscribe(ctx context.Context, in *SubscribeRequest, out *SubscribeResponse) error {
+	return h.StripeHandler.Subscribe(ctx, in, out)
+}
+
+func (h *stripeHandler) Unsubscribe(ctx context.Context, in *UnsubscribeRequest, out *UnsubscribeResponse) error {
+	return h.StripeHandler.Unsubscribe(ctx, in, out)
 }

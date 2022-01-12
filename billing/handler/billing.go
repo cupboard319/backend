@@ -6,10 +6,13 @@ import (
 
 	billing "github.com/m3o/services/billing/proto"
 	"github.com/m3o/services/pkg/auth"
+	custevents "github.com/m3o/services/pkg/events/proto/customers"
 	stripe "github.com/m3o/services/stripe/proto"
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/config"
 	"github.com/micro/micro/v3/service/errors"
+	"github.com/micro/micro/v3/service/events"
+	"github.com/micro/micro/v3/service/logger"
 	log "github.com/micro/micro/v3/service/logger"
 	"github.com/micro/micro/v3/service/store"
 )
@@ -41,7 +44,7 @@ func New(svc *service.Service) *Billing {
 		log.Fatalf("Failed to load config")
 	}
 	tiers := map[string]string{}
-	if err := val.Scan(tiers); err != nil {
+	if err := val.Scan(&tiers); err != nil {
 		log.Fatalf("Failed to load config")
 	}
 	bill := &Billing{
@@ -111,6 +114,18 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 		return errors.InternalServerError(method, "Error processing subscription. please try again")
 	}
 	// fire event
+	evt := &custevents.Event{
+		Type: custevents.EventType_EventTypeSubscriptionChanged,
+		Customer: &custevents.Customer{
+			Id: acc.ID,
+		},
+		SubscriptionChanged: &custevents.SubscriptionChanged{Tier: request.Id},
+	}
+	if err := events.Publish(custevents.Topic, evt); err != nil {
+		logger.Errorf("Error publishing event %+v", err)
+		return err
+	}
+
 	return nil
 }
 

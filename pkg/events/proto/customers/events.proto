@@ -27,6 +27,7 @@ enum EventType {
   EventTypeBalanceZero = 19;
   EventTypeBalanceDecrement = 20;
   EventTypeTokenRefresh = 21;
+  EventTypeSubscriptionChanged = 22;
 }
 
 // Event holds the customer object plus event specific data in the respective field
@@ -56,6 +57,7 @@ message Event {
   UnblockKey unblock_key = 20;
   BalanceDecrement balance_decrement = 21;
   TokenRefresh token_refresh = 22;
+  SubscriptionChanged subscription_changed = 23;
 }
 
 message Customer {
@@ -140,4 +142,8 @@ message BalanceDecrement {
 
 message TokenRefresh {
 
+}
+
+message SubscriptionChanged {
+  string tier = 1;
 }

@@ -51,6 +51,7 @@ func New(svc *service.Service) *Billing {
 		stripeSvc: stripe.NewStripeService("stripe", svc.Client()),
 		tiers:     tiers,
 	}
+	bill.consumeEvents()
 	return bill
 }
 

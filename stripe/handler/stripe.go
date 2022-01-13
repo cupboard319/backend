@@ -545,20 +545,13 @@ func (s *Stripe) GetPayment(ctx context.Context, request *stripepb.GetPaymentReq
 		return err
 	}
 
-	acc, _, err := mappingForCustomer(ctx, "stripe.ListPayments")
+	c, err := s.client.Charges.Get(request.Id, &stripe.ChargeParams{})
 	if err != nil {
-		return err
-	}
-
-	cl := s.client
-	if strings.HasSuffix(acc.Name, "@m3o.com") {
-		cl = s.testClient
-	}
-
-	c, err := cl.Charges.Get(request.Id, &stripe.ChargeParams{})
-	if err != nil {
-		return err
-
+		// try with the test client
+		c, err = s.testClient.Charges.Get(request.Id, &stripe.ChargeParams{})
+		if err != nil {
+			return err
+		}
 	}
 	response.Payment = &stripepb.Payment{
 		Id:         c.ID,

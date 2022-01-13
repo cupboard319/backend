@@ -587,15 +587,13 @@ func (s *Stripe) Subscribe(ctx context.Context, request *stripepb.SubscribeReque
 
 	// Subscribe to new product
 	sub, err := c.Subscriptions.New(&stripe.SubscriptionParams{
-		Card: &stripe.CardParams{
-			ID: request.CardId,
-		},
 		Customer: stripe.String(cm.StripeID),
 		Items: []*stripe.SubscriptionItemsParams{
 			{
 				Price: stripe.String(request.PriceId),
 			},
 		},
+		DefaultPaymentMethod: stripe.String(request.CardId),
 	})
 	if err != nil {
 		log.Errorf("Error subscribing %s %s %s", cm.StripeID, request.PriceId, err)

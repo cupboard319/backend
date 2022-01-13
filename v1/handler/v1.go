@@ -312,7 +312,7 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 
 	service, endpoint, err := getApiEndpointFromURL(reqURL)
 
-	use, err := v1.usageCache.getMonthlyUsageTotal(ctx, apiRec.UserID, service, endpoint)
+	use, quotas, err := v1.usageCache.getMonthlyUsageTotal(ctx, apiRec.UserID, service, endpoint)
 	if err != nil {
 		log.Errorf("Failed to retrieve usage %s", err)
 		// fail open
@@ -323,7 +323,7 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 	if price == 0 {
 		// it's free!!
 		// have we hit our fair use quota for the month?
-		if use["totalfree"] < defaultMonthlyUsageCap {
+		if use["totalfree"] < quotas["totalfree"] {
 			return "free", nil
 		}
 		// start charging the unit price

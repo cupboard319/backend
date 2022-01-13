@@ -107,5 +107,6 @@ message ReadMonthlyRequest {
 }
 
 message ReadMonthlyResponse {
-	map<string, int64> requests = 1;
+	map<string, int64> requests = 1; // actual usage
+	map<string, int64> quotas = 2; // how much they can do in a month
 }

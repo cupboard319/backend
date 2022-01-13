@@ -48,8 +48,8 @@ func (p *UsageSvc) processRequest(ctx context.Context, event *requests.Request, 
 	// monthly totals power monthly quotas
 	p.c.incrMonthly(ctx, event.UserId, fmt.Sprintf("%s$%s", event.ApiName, event.EndpointName), 1, t)
 	if event.Price == "free" {
-		// "totalfree" is the total of all calls to free endpoints (i.e. not paid). Powers a monthly usage cap
-		p.c.incrMonthly(ctx, event.UserId, "totalfree", 1, t)
+		// totalFree is the total of all calls to free endpoints (i.e. not paid). Powers a monthly usage cap
+		p.c.incrMonthly(ctx, event.UserId, totalFree, 1, t)
 	}
 	p.c.incrMonthly(ctx, event.UserId, "total", 1, t)
 	// incr total counts for the API and individual endpoint
@@ -71,6 +71,11 @@ func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 			logger.Errorf("Error processing request event %s", err)
 			return err
 		}
+	case eventspb.EventType_EventTypeSubscriptionChanged:
+		if err := p.processSubscriptionChanged(ctx, ce); err != nil {
+			logger.Errorf("Error processing request event %s", err)
+			return err
+		}
 	default:
 		logger.Infof("Skipping event %+v", ce)
 	}
@@ -81,4 +86,9 @@ func (p *UsageSvc) processCustomerEvents(ev mevents.Event) error {
 func (p *UsageSvc) processCustomerDelete(ctx context.Context, event *eventspb.Event) error {
 	// delete all their usage
 	return p.deleteUser(ctx, event.Customer.Id)
+}
+
+func (p *UsageSvc) processSubscriptionChanged(ctx context.Context, event *eventspb.Event) error {
+	// adjust their quota according to their subscription tier
+	return p.switchTier(event.Customer.Id, event.SubscriptionChanged.Tier)
 }

@@ -135,13 +135,13 @@ type usageCache struct {
 	usagesvc usage.UsageService
 }
 
-func (u *usageCache) getMonthlyUsageTotal(ctx context.Context, userID string, api, endpoint string) (map[string]int64, error) {
+func (u *usageCache) getMonthlyUsageTotal(ctx context.Context, userID string, api, endpoint string) (map[string]int64, map[string]int64, error) {
 	rsp, err := u.usagesvc.ReadMonthly(ctx, &usage.ReadMonthlyRequest{
 		CustomerId: userID,
 		Endpoints:  []string{"totalfree", fmt.Sprintf("%s$%s", api, endpoint)},
 	}, client.WithAuthToken())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return rsp.Requests, nil
+	return rsp.Requests, rsp.Quotas, nil
 }

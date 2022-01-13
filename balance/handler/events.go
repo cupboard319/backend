@@ -96,6 +96,8 @@ func (b *Balance) processStripeEvents(ev mevents.Event) error {
 }
 
 func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.ChargeSuceeded) error {
+	// TODO process money from subscriptions
+
 	// safety first
 	if ev == nil || ev.Amount == 0 {
 		return nil

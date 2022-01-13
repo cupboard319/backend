@@ -32,6 +32,8 @@ const (
 	prefixUsageByCustomer = "usageByCustomer" // customer ID / date
 	counterTTL            = 48 * time.Hour
 	counterMonthlyTTL     = 40 * 24 * time.Hour
+
+	totalFree = "totalFree"
 )
 
 type UsageSvc struct {
@@ -42,6 +44,7 @@ type UsageSvc struct {
 	papiService     publicapipb.PublicapiService
 	rankCache       []*pb.APIRankItem
 	globalRankCache []*pb.APIRankUserItem
+	quotas          map[string]int64
 }
 
 func NewHandler(svc *service.Service, dbService dbproto.DbService) *UsageSvc {
@@ -68,15 +71,24 @@ func NewHandler(svc *service.Service, dbService dbproto.DbService) *UsageSvc {
 			InsecureSkipVerify: false,
 		},
 	})
+	quotas := map[string]int64{}
+	val, err = config.Get("micro.usage.quotas")
+	if err != nil {
+		log.Fatalf("No quota config found")
+	}
+	if err := val.Scan(&quotas); err != nil {
+		log.Fatalf("Error parsing quota config %s", err)
+	}
 	p := &UsageSvc{
 		c:           &counter{redisClient: rc},
 		dbService:   dbService,
 		rankCache:   []*pb.APIRankItem{},
 		custService: custpb.NewCustomersService("customers", svc.Client()),
 		papiService: publicapipb.NewPublicapiService("publicapi", svc.Client()),
+		quotas:      quotas,
 	}
 	p.RankingCron()
-	go p.consumeEvents()
+	p.consumeEvents()
 	return p
 }
 
@@ -269,6 +281,10 @@ func (p *UsageSvc) deleteUser(ctx context.Context, userID string) error {
 		if err := store.Delete(rec.Key); err != nil {
 			return err
 		}
+	}
+
+	if err := store.Delete(quotaByCustKey(userID)); err != nil {
+		return err
 	}
 	return nil
 
@@ -665,19 +681,29 @@ func (p *UsageSvc) ReadMonthlyTotal(ctx context.Context, request *pb.ReadMonthly
 }
 
 func (p *UsageSvc) ReadMonthly(ctx context.Context, request *pb.ReadMonthlyRequest, response *pb.ReadMonthlyResponse) error {
-	_, err := m3oauth.VerifyMicroAdmin(ctx, "usage.ReadMonthlyTotal")
+	method := "usage.ReadMonthlyTotal"
+	_, err := m3oauth.VerifyMicroAdmin(ctx, method)
 	if err != nil {
 		return err
 	}
 	t := time.Now()
 	response.Requests = map[string]int64{}
+	response.Quotas = map[string]int64{}
+	qs, err := p.loadCustomerQuotas(request.CustomerId)
+	if err != nil {
+		log.Errorf("Error loading customer quotas %s", err)
+		return errors.InternalServerError(method, "Error reading usage")
+	}
 	for _, v := range request.Endpoints {
 		count, err := p.c.readMonthly(ctx, request.CustomerId, v, t)
 		if err != nil {
 			log.Errorf("Error reading usage %s", err)
-			return errors.InternalServerError("usage.ReadMonthly", "Error reading usage")
+			return errors.InternalServerError(method, "Error reading usage")
 		}
 		response.Requests[v] = count
+		if q, ok := qs.quota(v); ok {
+			response.Quotas[v] = q
+		}
 	}
 	return nil
 }

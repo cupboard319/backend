@@ -28,6 +28,7 @@ service Billing {
 
 message SubscribeTierRequest {
 	string id = 1; // ID of the tier
+	string card_id = 2;
 }
 
 message SubscribeTierResponse {}

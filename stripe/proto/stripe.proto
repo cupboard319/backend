@@ -76,6 +76,7 @@ message GetPaymentResponse {
 
 message SubscribeRequest {
 	string price_id = 1;
+	string card_id = 2;
 }
 
 message SubscribeResponse {

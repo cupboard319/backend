@@ -100,7 +100,10 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 
 	subID := ""
 	if priceID != "free" {
-		rsp, err := b.stripeSvc.Subscribe(ctx, &stripe.SubscribeRequest{PriceId: priceID})
+		rsp, err := b.stripeSvc.Subscribe(ctx, &stripe.SubscribeRequest{
+			PriceId: priceID,
+			CardId:  request.CardId,
+		})
 		if err != nil {
 			log.Errorf("Error subscribing %s", err)
 			return errors.InternalServerError(method, "Error processing subscription. please try again")

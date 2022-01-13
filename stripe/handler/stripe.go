@@ -587,7 +587,9 @@ func (s *Stripe) Subscribe(ctx context.Context, request *stripepb.SubscribeReque
 
 	// Subscribe to new product
 	sub, err := c.Subscriptions.New(&stripe.SubscriptionParams{
-		Card:     nil, // TODO will use default card for now, how do we specify the default card in the UI?
+		Card: &stripe.CardParams{
+			ID: request.CardId,
+		},
 		Customer: stripe.String(cm.StripeID),
 		Items: []*stripe.SubscriptionItemsParams{
 			{

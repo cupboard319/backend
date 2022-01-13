@@ -44,7 +44,7 @@ func NewBillingEndpoints() []*api.Endpoint {
 type BillingService interface {
 	// Subscribe to a tier
 	SubscribeTier(ctx context.Context, in *SubscribeTierRequest, opts ...client.CallOption) (*SubscribeTierResponse, error)
-	// Returns a list of the available tiers
+	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
 	ListTiers(ctx context.Context, in *ListTiersRequest, opts ...client.CallOption) (*ListTiersResponse, error)
 	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
 	ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, opts ...client.CallOption) (*ListSubscriptionsResponse, error)
@@ -163,7 +163,7 @@ func (c *billingService) GetPayment(ctx context.Context, in *GetPaymentRequest, 
 type BillingHandler interface {
 	// Subscribe to a tier
 	SubscribeTier(context.Context, *SubscribeTierRequest, *SubscribeTierResponse) error
-	// Returns a list of the available tiers
+	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
 	ListTiers(context.Context, *ListTiersRequest, *ListTiersResponse) error
 	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
 	ListSubscriptions(context.Context, *ListSubscriptionsRequest, *ListSubscriptionsResponse) error

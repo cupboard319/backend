@@ -249,6 +249,9 @@ func TestCallVerification(t *testing.T) {
 							"helloworld$Helloworld.Call": tc.reqCount,
 							"totalfree":                  tc.totalFreeCount,
 						},
+						Quotas: map[string]int64{
+							"totalfree": 1000000,
+						},
 					}, nil
 				},
 			}

@@ -34,8 +34,8 @@ type Tier struct {
 type BillingAccount struct {
 	ID      string
 	Admins  []string // a billing acocunt can have multiple admins, but an admin can only admin one account
-	PriceID string   // ID of the subscription type, "free", "team", "pro"
-	SubID   string   // Stripe subscription ID
+	PriceID string   // ID of the Stripe price for the subscription tier, "free" or  "price_198234aksjfh"
+	SubID   string   // Stripe subscription ID "sub_1o283yklajdfn"
 }
 
 func New(svc *service.Service) *Billing {
@@ -57,6 +57,15 @@ func New(svc *service.Service) *Billing {
 
 func (b *Billing) lookupPriceID(tierID string) string {
 	return b.tiers[tierID]
+}
+
+func (b *Billing) lookupTierID(priceID string) string {
+	for k, v := range b.tiers {
+		if v == priceID {
+			return k
+		}
+	}
+	return ""
 }
 
 // SubscribeTier sets up a user/team to be subscribed to a tier.
@@ -154,7 +163,7 @@ func (b *Billing) ListSubscriptions(ctx context.Context, request *billing.ListSu
 		log.Errorf("Error unmarshalling billing acc %s", err)
 		return errors.InternalServerError(method, "Error processing list subscription, please try again")
 	}
-	response.Subscriptions = []*billing.Subscription{{Id: billingAcc.PriceID}}
+	response.Subscriptions = []*billing.Subscription{{Id: b.lookupTierID(billingAcc.PriceID)}}
 	return nil
 }
 

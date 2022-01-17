@@ -44,8 +44,6 @@ func NewBillingEndpoints() []*api.Endpoint {
 type BillingService interface {
 	// Subscribe to a tier
 	SubscribeTier(ctx context.Context, in *SubscribeTierRequest, opts ...client.CallOption) (*SubscribeTierResponse, error)
-	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
-	ListTiers(ctx context.Context, in *ListTiersRequest, opts ...client.CallOption) (*ListTiersResponse, error)
 	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
 	ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, opts ...client.CallOption) (*ListSubscriptionsResponse, error)
 	CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, opts ...client.CallOption) (*CreateCheckoutSessionResponse, error)
@@ -71,16 +69,6 @@ func NewBillingService(name string, c client.Client) BillingService {
 func (c *billingService) SubscribeTier(ctx context.Context, in *SubscribeTierRequest, opts ...client.CallOption) (*SubscribeTierResponse, error) {
 	req := c.c.NewRequest(c.name, "Billing.SubscribeTier", in)
 	out := new(SubscribeTierResponse)
-	err := c.c.Call(ctx, req, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *billingService) ListTiers(ctx context.Context, in *ListTiersRequest, opts ...client.CallOption) (*ListTiersResponse, error) {
-	req := c.c.NewRequest(c.name, "Billing.ListTiers", in)
-	out := new(ListTiersResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -163,8 +151,6 @@ func (c *billingService) GetPayment(ctx context.Context, in *GetPaymentRequest, 
 type BillingHandler interface {
 	// Subscribe to a tier
 	SubscribeTier(context.Context, *SubscribeTierRequest, *SubscribeTierResponse) error
-	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
-	ListTiers(context.Context, *ListTiersRequest, *ListTiersResponse) error
 	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
 	ListSubscriptions(context.Context, *ListSubscriptionsRequest, *ListSubscriptionsResponse) error
 	CreateCheckoutSession(context.Context, *CreateCheckoutSessionRequest, *CreateCheckoutSessionResponse) error
@@ -178,7 +164,6 @@ type BillingHandler interface {
 func RegisterBillingHandler(s server.Server, hdlr BillingHandler, opts ...server.HandlerOption) error {
 	type billing interface {
 		SubscribeTier(ctx context.Context, in *SubscribeTierRequest, out *SubscribeTierResponse) error
-		ListTiers(ctx context.Context, in *ListTiersRequest, out *ListTiersResponse) error
 		ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, out *ListSubscriptionsResponse) error
 		CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, out *CreateCheckoutSessionResponse) error
 		ListCards(ctx context.Context, in *ListCardsRequest, out *ListCardsResponse) error
@@ -200,10 +185,6 @@ type billingHandler struct {
 
 func (h *billingHandler) SubscribeTier(ctx context.Context, in *SubscribeTierRequest, out *SubscribeTierResponse) error {
 	return h.BillingHandler.SubscribeTier(ctx, in, out)
-}
-
-func (h *billingHandler) ListTiers(ctx context.Context, in *ListTiersRequest, out *ListTiersResponse) error {
-	return h.BillingHandler.ListTiers(ctx, in, out)
 }
 
 func (h *billingHandler) ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, out *ListSubscriptionsResponse) error {

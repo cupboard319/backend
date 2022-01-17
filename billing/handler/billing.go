@@ -34,7 +34,7 @@ type Tier struct {
 type BillingAccount struct {
 	ID      string
 	Admins  []string // a billing acocunt can have multiple admins, but an admin can only admin one account
-	PriceID string   // Stripe price ID they've subscribed to
+	PriceID string   // ID of the subscription type, "free", "team", "pro"
 	SubID   string   // Stripe subscription ID
 }
 
@@ -133,14 +133,29 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 	return nil
 }
 
-func (b *Billing) ListTiers(ctx context.Context, request *billing.ListTiersRequest, response *billing.ListTiersResponse) error {
-	// ref data, returns list of available tiers
-	panic("implement me")
-}
-
 func (b *Billing) ListSubscriptions(ctx context.Context, request *billing.ListSubscriptionsRequest, response *billing.ListSubscriptionsResponse) error {
 	// List current active subscriptions
-	panic("implement me")
+	method := "billing.ListSubscriptions"
+	acc, err := auth.VerifyMicroCustomer(ctx, method)
+	if err != nil {
+		return err
+	}
+	recs, err := store.Read(adminKey(acc.ID))
+	if err != nil && err != store.ErrNotFound {
+		log.Errorf("Error processing list subscription %s", err)
+		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+	}
+	if len(recs) == 0 {
+		log.Errorf("No billing account found for user %s", acc.ID)
+		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+	}
+	var billingAcc BillingAccount
+	if err := json.Unmarshal(recs[0].Value, &billingAcc); err != nil {
+		log.Errorf("Error unmarshalling billing acc %s", err)
+		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+	}
+	response.Subscriptions = []*billing.Subscription{{Id: billingAcc.PriceID}}
+	return nil
 }
 
 func (b *Billing) CreateCheckoutSession(ctx context.Context, request *billing.CreateCheckoutSessionRequest, response *billing.CreateCheckoutSessionResponse) error {

@@ -7,9 +7,6 @@ option go_package = "./proto;billing";
 service Billing {
 	// Subscribe to a tier
 	rpc SubscribeTier(SubscribeTierRequest) returns (SubscribeTierResponse) {}
-	// Returns a list of the available tiers - TODO do we need this or just hardcode in front end?
-	rpc ListTiers(ListTiersRequest) returns (ListTiersResponse) {}
-
 
 	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
 	rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse) {}
@@ -27,19 +24,11 @@ service Billing {
 
 
 message SubscribeTierRequest {
-	string id = 1; // ID of the tier
-	string card_id = 2;
+	string id = 1; // ID of the tier - free, pro, team
+	string card_id = 2; // The card to charge
 }
 
 message SubscribeTierResponse {}
-
-message ListTiersRequest {
-	string currency = 1; // currency code for price
-}
-
-message ListTiersResponse {
-	repeated Tier tiers = 1;
-}
 
 message Tier {
 	string id = 1;
@@ -58,9 +47,7 @@ message ListSubscriptionsResponse {
 
 message Subscription {
 	string id = 1;
-	string name = 2;
-	string description = 3;
-	int32 price = 4;
+	// TODO add more useful fields
 }
 
 

@@ -33,7 +33,7 @@ const (
 	counterTTL            = 48 * time.Hour
 	counterMonthlyTTL     = 40 * 24 * time.Hour
 
-	totalFree = "totalFree"
+	totalFree = "totalfree"
 )
 
 type UsageSvc struct {
@@ -681,7 +681,7 @@ func (p *UsageSvc) ReadMonthlyTotal(ctx context.Context, request *pb.ReadMonthly
 }
 
 func (p *UsageSvc) ReadMonthly(ctx context.Context, request *pb.ReadMonthlyRequest, response *pb.ReadMonthlyResponse) error {
-	method := "usage.ReadMonthlyTotal"
+	method := "usage.ReadMonthly"
 	_, err := m3oauth.VerifyMicroAdmin(ctx, method)
 	if err != nil {
 		return err

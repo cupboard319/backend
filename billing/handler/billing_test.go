@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -122,6 +123,18 @@ func TestSubscribeTier(t *testing.T) {
 					t.Errorf("Failed to publish event")
 				}
 
+			}
+			if tc.testErr == nil {
+				recs, _ := store.Read(adminKey("1"))
+				g.Expect(len(recs)).To(Equal(1))
+				var ba BillingAccount
+				json.Unmarshal(recs[0].Value, &ba)
+				g.Expect(b.lookupTierID(ba.PriceID)).To(Equal(tc.tier))
+				subID := "100"
+				if tc.tier == "free" {
+					subID = ""
+				}
+				g.Expect(ba.SubID).To(Equal(subID))
 			}
 
 		})

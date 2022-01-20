@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package projects;
+
+option go_package = "./proto;projects";
+
+service Projects {
+	rpc Create(CreateRequest) returns (CreateResponse) {}
+	rpc Read(ReadRequest) returns (ReadResponse) {}
+	rpc List(ListRequest) returns (ListResponse) {}
+}
+
+message CreateRequest {
+	string name = 1;
+}
+
+message CreateResponse {
+	string id = 1;
+}
+
+message ReadRequest {
+	string id = 1;
+}
+
+message ReadResponse {
+	Project project = 1;
+}
+
+message Project {
+	string id = 1;
+	string name = 2;
+	repeated Member members = 3;
+}
+
+message Member {
+	string id = 1;
+	repeated string roles = 2;
+}
+
+// returns a list of all the projects this customer has access to
+message ListRequest {
+	string customer_id = 1;
+}
+
+message ListResponse {
+	repeated Project projects = 1;
+}

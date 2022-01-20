@@ -50,6 +50,7 @@ func (b *Balance) processRequest(ctx context.Context, rqe *requests.Request) err
 		return nil
 	}
 
+	// TODO projects switch to using rqe.ProjectID
 	// decrement the balance
 	currBal, err := b.c.decr(ctx, rqe.UserId, "$balance$", int64(price))
 	if err != nil {
@@ -65,6 +66,7 @@ func (b *Balance) processRequest(ctx context.Context, rqe *requests.Request) err
 		Customer: &eventspb.Customer{
 			Id: rqe.UserId,
 		},
+		ProjectId: rqe.UserId,
 	}
 	if err := events.Publish(eventspb.Topic, evt); err != nil {
 		logger.Errorf("Error publishing event %+v", evt)
@@ -96,7 +98,6 @@ func (b *Balance) processStripeEvents(ev mevents.Event) error {
 }
 
 func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.ChargeSuceeded) error {
-	// TODO process money from subscriptions
 
 	// safety first
 	if ev == nil || ev.Amount == 0 {
@@ -107,6 +108,12 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 	if err != nil {
 		return err
 	}
+
+	// TODO PROJECTS
+	// lookup customer ID's projects. If they have just one project then credit it straight to that balance. If they have
+	// multiple projects then credit this to a master balance, ready to be allocated
+	// if a project is deleted we need to reallocate the balance. If only one project left sweep everything in to
+	// the remaining project. If multiple then sweep it back in to the parent account balance
 
 	adj, err := storeAdjustment(ev.CustomerId, ev.Amount*10000, ev.CustomerId, "Funds added", true, map[string]string{
 		"receipt_url": srsp.Payment.ReceiptUrl,
@@ -132,6 +139,7 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 		Customer: &eventspb.Customer{
 			Id: adj.CustomerID,
 		},
+		//ProjectId: TODO PROJECTS
 	}
 
 	if err := events.Publish(eventspb.Topic, evt); err != nil {
@@ -162,6 +170,7 @@ func (b *Balance) processCustomerEvents(ev mevents.Event) error {
 }
 
 func (b *Balance) processCustomerDelete(ctx context.Context, event *eventspb.Event) error {
+	// TODO PROJECTS delete any parent balance account. User a project deleted event to trigger delete of the balances
 	// delete all their balances
 	if err := b.deleteCustomer(ctx, event.Customer.Id); err != nil {
 		logger.Errorf("Error deleting customer %s", err)

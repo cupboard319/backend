@@ -43,6 +43,7 @@ func (p *UsageSvc) processV1apiEvents(ev mevents.Event) error {
 }
 
 func (p *UsageSvc) processRequest(ctx context.Context, event *requests.Request, t time.Time) error {
+	// TODO PROJECTS switch to being project aware
 	_, err := p.c.incr(ctx, event.UserId, event.ApiName, 1, t)
 	p.c.incr(ctx, event.UserId, fmt.Sprintf("%s$%s", event.ApiName, event.EndpointName), 1, t)
 	// monthly totals power monthly quotas

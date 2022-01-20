@@ -98,12 +98,11 @@ func (b *Billing) storeBillingAccount(billingAcc *BillingAccount) error {
 }
 
 func (b *Billing) processCustomerDelete(ctx context.Context, event *custpb.Event) error {
-	// TODO
+	// TODO SUBSCRIPTIONS remove sa owner of billing account, delete if no other owners of the billing account
 	return nil
 }
 
 func (b *Billing) processCustomerCreate(ctx context.Context, event *custpb.Event) error {
-	// TODO Create a billing account for this user?
 	return nil
 }
 

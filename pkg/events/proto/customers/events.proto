@@ -35,6 +35,7 @@ message Event {
   EventType type = 1;
   Customer customer = 2;
   string caller_id = 3;
+  string project_id = 24;
 
   // event specific data
 

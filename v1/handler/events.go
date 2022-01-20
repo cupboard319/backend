@@ -49,17 +49,19 @@ func (v1 *V1) processCustomerEvents(ev mevents.Event) error {
 }
 
 func (v1 *V1) processCustomerDelete(ctx context.Context, event *eventspb.Event) error {
+	// TODO PROJECTS probably replace with a project delete event processing
 	return v1.deleteCustomer(ctx, event.Customer.Id)
 }
 
 func (v1 *V1) processCustomerBan(ctx context.Context, event *eventspb.Event) error {
+	// TODO PROJECTS disable all the keys on all the projects
 	// disable all their keys
 	return v1.updateKeyStatus(ctx, "v1.ban", "micro", event.Customer.Id, "", keyStatusBlocked, "User has been banned")
 }
 
 func (v1 *V1) processCustomerUnban(ctx context.Context, event *eventspb.Event) error {
+	// TODO PROJECTS enable all keys on all the projects
 	return v1.updateKeyStatus(ctx, "v1.unban", "micro", event.Customer.Id, "", keyStatusActive, "")
-
 }
 
 func (v1 *V1) processRequestEvents(ev mevents.Event) error {
@@ -72,7 +74,7 @@ func (v1 *V1) processRequestEvents(ev mevents.Event) error {
 	switch ce.Type {
 	case requestspb.EventType_EventTypeRequest:
 		if err := v1.processRequestEvent(ctx, ce, ev.Timestamp); err != nil {
-			logger.Errorf("Error processing customer delete event %s", err)
+			logger.Errorf("Error processing request event %s", err)
 			return err
 		}
 	default:

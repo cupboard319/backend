@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	eventspb "github.com/m3o/services/pkg/events/proto/customers"
+	projects "github.com/m3o/services/projects/proto"
 	pb "github.com/m3o/services/v1/proto"
 	authpb "github.com/micro/micro/v3/proto/auth"
 	"github.com/micro/micro/v3/service/auth"
@@ -44,33 +45,48 @@ type apiKeyRecord struct {
 
 // GenerateKey generates an API key
 func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *pb.GenerateKeyResponse) error {
+	method := "v1.GenerateKey"
 	if len(req.Scopes) == 0 {
-		return errors.BadRequest("v1.generate", "Missing scopes field")
+		return errors.BadRequest(method, "Missing scopes field")
 	}
 	if len(req.Description) == 0 {
-		return errors.BadRequest("v1.generate", "Missing description field")
+		return errors.BadRequest(method, "Missing description field")
 	}
 
-	acc, err := m3oauth.VerifyMicroCustomer(ctx, "v1.generate")
+	acc, err := m3oauth.VerifyMicroCustomer(ctx, method)
 	if err != nil {
 		return err
 	}
 	// are they allowed to generate with the requested scopes?
 	if !v1.checkRequestedScopes(ctx, req.Scopes) {
-		return errors.Forbidden("v1.generate", "Not allowed to generate a key with requested scopes")
+		return errors.Forbidden(method, "Not allowed to generate a key with requested scopes")
 	}
 
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return errors.InternalServerError("v1.generate", "Failed to generate api key")
+		return errors.InternalServerError(method, "Failed to generate api key")
 	}
 
 	apiKey := base64.StdEncoding.EncodeToString([]byte(id.String()))
 	hashedKey, err := hashSecret(apiKey)
 	if err != nil {
 		log.Errorf("Error hashing api key %s", err)
-		return errors.InternalServerError("v1.generate", "Failed to generate api key")
+		return errors.InternalServerError(method, "Failed to generate api key")
 	}
+
+	// TODO, project ID should be passed in on request
+	// which project are we assigning this to?
+	projRsp, err := v1.projSvc.List(ctx, &projects.ListRequest{CustomerId: acc.ID})
+	if err != nil {
+		log.Errorf("Error retrieving project list %s", err)
+		return errors.InternalServerError(method, "Failed to generate api key")
+	}
+	// TODO take project ID as param
+	if len(projRsp.Projects) != 1 {
+		log.Errorf("Unable to determine which project to assign to key %+v", projRsp.Projects)
+		return errors.InternalServerError(method, "Failed to generate api key")
+	}
+	keyOwner := projRsp.Projects[0].Id
 
 	// api key is the secret for a new account
 	// generate the new account + short lived access token for it
@@ -80,11 +96,11 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		auth.WithIssuer(acc.Issuer),
 		auth.WithType("apikey"),
 		auth.WithScopes(req.Scopes...),
-		auth.WithMetadata(map[string]string{"apikey_owner": acc.ID}),
+		auth.WithMetadata(map[string]string{"apikey_owner": keyOwner}),
 	)
 	if err != nil {
 		log.Errorf("Error generating auth account %s", err)
-		return errors.InternalServerError("v1.generate", "Failed to generate api key")
+		return errors.InternalServerError(method, "Failed to generate api key")
 	}
 	tok, err := auth.Token(
 		auth.WithCredentials(authAcc.ID, apiKey),
@@ -92,14 +108,14 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		auth.WithExpiry(1*time.Hour))
 	if err != nil {
 		log.Errorf("Error generating token %s", err)
-		return errors.InternalServerError("v1.generate", "Failed to generate api key")
+		return errors.InternalServerError(method, "Failed to generate api key")
 	}
 	// hash API key and store with scopes
 	rec := apiKeyRecord{
 		ID:          uuid.New().String(),
 		ApiKey:      hashedKey,
 		Scopes:      req.Scopes,
-		UserID:      acc.ID,
+		UserID:      keyOwner,
 		Namespace:   acc.Issuer,
 		Description: req.Description,
 		AccID:       authAcc.ID,
@@ -109,7 +125,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 	}
 	if err := v1.writeAPIRecord(ctx, &rec); err != nil {
 		log.Errorf("Failed to write api record %s", err)
-		return errors.InternalServerError("v1.generate", "Failed to generate api key")
+		return errors.InternalServerError(method, "Failed to generate api key")
 	}
 
 	if err := events.Publish(eventspb.Topic, eventspb.Event{
@@ -121,7 +137,9 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 		GenerateKey: &eventspb.GenerateKey{
 			Scopes: rec.Scopes,
 			Id:     rec.ID,
-		}}); err != nil {
+		},
+		ProjectId: acc.ID,
+	}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}
 	// return the unhashed key
@@ -217,6 +235,7 @@ func (v1 *V1) deleteKey(ctx context.Context, rec *apiKeyRecord) error {
 			Id: rec.UserID,
 		},
 		DeleteKey: &eventspb.DeleteKey{Id: rec.ID},
+		ProjectId: rec.UserID,
 	}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}
@@ -236,7 +255,8 @@ func (v1 *V1) BlockKey(ctx context.Context, request *pb.BlockKeyRequest, respons
 		Customer: &eventspb.Customer{
 			Id: request.UserId,
 		},
-		BlockKey: &eventspb.BlockKey{Id: request.KeyId},
+		BlockKey:  &eventspb.BlockKey{Id: request.KeyId},
+		ProjectId: request.UserId,
 	}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}
@@ -257,6 +277,7 @@ func (v1 *V1) UnblockKey(ctx context.Context, request *pb.UnblockKeyRequest, res
 			Id: request.UserId,
 		},
 		UnblockKey: &eventspb.UnblockKey{Id: request.KeyId},
+		ProjectId:  request.UserId,
 	}); err != nil {
 		log.Errorf("Error publishing event %s", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/google/uuid"
 	auth2 "github.com/m3o/services/pkg/auth"
 	projects "github.com/m3o/services/projects/proto"
 	"github.com/micro/micro/v3/service"
@@ -89,7 +88,7 @@ func (p *Projects) Read(ctx context.Context, request *projects.ReadRequest, resp
 
 func createDefaultProject(userID string) (*Project, error) {
 	project := Project{
-		ID:   uuid.New().String(),
+		ID:   userID,
 		Name: "default",
 		Members: []Member{
 			{

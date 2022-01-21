@@ -33,7 +33,7 @@ type Tier struct {
 // BillingAccount is the entity that owns the subscription, etc
 type BillingAccount struct {
 	ID      string
-	Admins  []string // a billing acocunt can have multiple admins, but an admin can only admin one account
+	Admins  []string // a billing account can have multiple admins, but an admin can only admin one account
 	PriceID string   // ID of the Stripe price for the subscription tier, "free" or  "price_198234aksjfh"
 	SubID   string   // Stripe subscription ID "sub_1o283yklajdfn"
 }
@@ -142,28 +142,43 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 	return nil
 }
 
-func (b *Billing) ListSubscriptions(ctx context.Context, request *billing.ListSubscriptionsRequest, response *billing.ListSubscriptionsResponse) error {
-	// List current active subscriptions
-	method := "billing.ListSubscriptions"
-	acc, err := auth.VerifyMicroCustomer(ctx, method)
+func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountRequest, response *billing.ReadAccountResponse) error {
+	method := "billing.ReadAccount"
+	key := ""
+	acc, err := auth.VerifyMicroAdmin(ctx, method)
 	if err != nil {
-		return err
+		acc, err = auth.VerifyMicroCustomer(ctx, method)
+		if err != nil {
+			return err
+		}
+		key = adminKey(acc.ID)
+	} else {
+		if len(request.Id) > 0 {
+			key = billingAccKey(request.Id)
+		} else if len(request.AdminId) > 0 {
+			key = adminKey(request.AdminId)
+		} else {
+			return errors.BadRequest(method, "Missing id or admin_id param")
+		}
 	}
-	recs, err := store.Read(adminKey(acc.ID))
+
+	recs, err := store.Read(key)
 	if err != nil && err != store.ErrNotFound {
-		log.Errorf("Error processing list subscription %s", err)
-		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+		log.Errorf("Error processing read %s", err)
+		return errors.InternalServerError(method, "Error processing read, please try again")
 	}
 	if len(recs) == 0 {
 		log.Errorf("No billing account found for user %s", acc.ID)
-		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+		return errors.InternalServerError(method, "Error processing read, please try again")
 	}
 	var billingAcc BillingAccount
 	if err := json.Unmarshal(recs[0].Value, &billingAcc); err != nil {
 		log.Errorf("Error unmarshalling billing acc %s", err)
-		return errors.InternalServerError(method, "Error processing list subscription, please try again")
+		return errors.InternalServerError(method, "Error processing read, please try again")
 	}
-	response.Subscriptions = []*billing.Subscription{{Id: b.lookupTierID(billingAcc.PriceID)}}
+	response.BillingAccount.Subscriptions = []*billing.Subscription{{Id: b.lookupTierID(billingAcc.PriceID)}}
+	response.BillingAccount.Id = billingAcc.ID
+	response.BillingAccount.Admins = billingAcc.Admins
 	return nil
 }
 

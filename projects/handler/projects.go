@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	billing "github.com/m3o/services/billing/proto"
 	auth2 "github.com/m3o/services/pkg/auth"
 	projects "github.com/m3o/services/projects/proto"
 	"github.com/micro/micro/v3/service"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	prefixProjectsByUser = "projectsByUser"
-	prefixProjectsByID   = "projectsByID"
+	prefixProjectsByUser           = "projectsByUser"
+	prefixProjectsByID             = "projectsByID"
+	prefixProjectsByBillingAccount = "projectsByBilling"
 
 	roleAdmin = "admin"
 )
@@ -29,10 +31,15 @@ func projectsByID(projectID string) string {
 	return fmt.Sprintf("%s/%s", prefixProjectsByID, projectID)
 }
 
+func projectsByBilling(billingAccID, projectID string) string {
+	return fmt.Sprintf("%s/%s/%s", prefixProjectsByBillingAccount, billingAccID, projectID)
+}
+
 type Project struct {
-	ID      string
-	Name    string
-	Members []Member
+	ID               string
+	Name             string
+	Members          []Member
+	BillingAccountID string
 }
 
 type Member struct {
@@ -40,10 +47,14 @@ type Member struct {
 	Roles []string
 }
 
-type Projects struct{}
+type Projects struct {
+	billingSvc billing.BillingService
+}
 
 func New(srv *service.Service) *Projects {
-	return &Projects{}
+	return &Projects{
+		billingSvc: billing.NewBillingService("billing", srv.Client()),
+	}
 }
 
 func (p *Projects) Create(ctx context.Context, request *projects.CreateRequest, response *projects.CreateResponse) error {
@@ -96,30 +107,75 @@ func createDefaultProject(userID string) (*Project, error) {
 				Roles: []string{roleAdmin},
 			},
 		},
+		BillingAccountID: userID,
 	}
 
-	err := writeProject(project, userID)
+	err := writeProject(project)
 	return &project, err
 }
 
-func writeProject(project Project, userID string) error {
-	if err := store.Write(store.NewRecord(projectsByUserKey(userID, project.ID), project)); err != nil {
+func writeProject(project Project) error {
+	// delete any existing members
+	recs, err := store.Read(projectsByID(project.ID))
+	if err != nil && err != store.ErrNotFound {
 		return err
 	}
-	if err := store.Write(store.NewRecord(projectsByUserKey(userID, project.ID), project)); err != nil {
+	if len(recs) == 1 {
+		var proj Project
+		if err := json.Unmarshal(recs[0].Value, &proj); err != nil {
+			return err
+		}
+		for _, v := range proj.Members {
+			if err := store.Delete(projectsByUserKey(v.ID, proj.ID)); err != nil {
+				return err
+			}
+		}
+	}
+	// write it
+
+	for _, v := range project.Members {
+		if err := store.Write(store.NewRecord(projectsByUserKey(v.ID, project.ID), project)); err != nil {
+			return err
+		}
+	}
+	if err := store.Write(store.NewRecord(projectsByID(project.ID), project)); err != nil {
+		return err
+	}
+	if err := store.Write(store.NewRecord(projectsByBilling(project.BillingAccountID, project.ID), project)); err != nil {
 		return err
 	}
 	return nil
 }
 
-// List the projects this user has access to
+// List the projects this user has access to or list the projects for this billing account
 func (p *Projects) List(ctx context.Context, request *projects.ListRequest, response *projects.ListResponse) error {
 	method := "projects.List"
 	acc, err := auth2.VerifyMicroCustomer(ctx, method)
 	if err != nil {
 		return err
 	}
-	recs, err := store.Read(projectsByUserKey(acc.ID, ""), store.ReadPrefix())
+	key := projectsByUserKey(acc.ID, "")
+	if len(request.BillingAccountId) > 0 {
+		// Check the customer has admin access to this billing accountn
+		rsp, err := p.billingSvc.ReadAccount(ctx, &billing.ReadAccountRequest{Id: request.BillingAccountId})
+		if err != nil || rsp.BillingAccount == nil {
+			return errors.Unauthorized(method, "Unauthorized")
+		}
+		found := false
+		for _, v := range rsp.BillingAccount.Admins {
+			if v == acc.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return errors.Unauthorized(method, "Unauthorized")
+		}
+		key = projectsByBilling(request.BillingAccountId, "")
+
+	}
+
+	recs, err := store.Read(key, store.ReadPrefix())
 	if err != nil && err != store.ErrNotFound {
 		log.Errorf("Error listing projects %s", err)
 		return errors.InternalServerError(method, "Error looking up projects")

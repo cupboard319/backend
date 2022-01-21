@@ -12,6 +12,7 @@ service Projects {
 
 message CreateRequest {
 	string name = 1;
+	string billing_account = 2;
 }
 
 message CreateResponse {
@@ -30,6 +31,7 @@ message Project {
 	string id = 1;
 	string name = 2;
 	repeated Member members = 3;
+	string billing_account = 4;
 }
 
 message Member {
@@ -37,9 +39,9 @@ message Member {
 	repeated string roles = 2;
 }
 
-// returns a list of all the projects this customer has access to
+// returns a list of all the projects this customer OR billing account has access to
 message ListRequest {
-	string customer_id = 1;
+	string billing_account_id = 1;
 }
 
 message ListResponse {

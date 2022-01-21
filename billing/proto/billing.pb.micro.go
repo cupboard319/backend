@@ -44,8 +44,7 @@ func NewBillingEndpoints() []*api.Endpoint {
 type BillingService interface {
 	// Subscribe to a tier
 	SubscribeTier(ctx context.Context, in *SubscribeTierRequest, opts ...client.CallOption) (*SubscribeTierResponse, error)
-	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
-	ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, opts ...client.CallOption) (*ListSubscriptionsResponse, error)
+	ReadAccount(ctx context.Context, in *ReadAccountRequest, opts ...client.CallOption) (*ReadAccountResponse, error)
 	CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, opts ...client.CallOption) (*CreateCheckoutSessionResponse, error)
 	ListCards(ctx context.Context, in *ListCardsRequest, opts ...client.CallOption) (*ListCardsResponse, error)
 	ChargeCard(ctx context.Context, in *ChargeCardRequest, opts ...client.CallOption) (*ChargeCardResponse, error)
@@ -76,9 +75,9 @@ func (c *billingService) SubscribeTier(ctx context.Context, in *SubscribeTierReq
 	return out, nil
 }
 
-func (c *billingService) ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, opts ...client.CallOption) (*ListSubscriptionsResponse, error) {
-	req := c.c.NewRequest(c.name, "Billing.ListSubscriptions", in)
-	out := new(ListSubscriptionsResponse)
+func (c *billingService) ReadAccount(ctx context.Context, in *ReadAccountRequest, opts ...client.CallOption) (*ReadAccountResponse, error) {
+	req := c.c.NewRequest(c.name, "Billing.ReadAccount", in)
+	out := new(ReadAccountResponse)
 	err := c.c.Call(ctx, req, out, opts...)
 	if err != nil {
 		return nil, err
@@ -151,8 +150,7 @@ func (c *billingService) GetPayment(ctx context.Context, in *GetPaymentRequest, 
 type BillingHandler interface {
 	// Subscribe to a tier
 	SubscribeTier(context.Context, *SubscribeTierRequest, *SubscribeTierResponse) error
-	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
-	ListSubscriptions(context.Context, *ListSubscriptionsRequest, *ListSubscriptionsResponse) error
+	ReadAccount(context.Context, *ReadAccountRequest, *ReadAccountResponse) error
 	CreateCheckoutSession(context.Context, *CreateCheckoutSessionRequest, *CreateCheckoutSessionResponse) error
 	ListCards(context.Context, *ListCardsRequest, *ListCardsResponse) error
 	ChargeCard(context.Context, *ChargeCardRequest, *ChargeCardResponse) error
@@ -164,7 +162,7 @@ type BillingHandler interface {
 func RegisterBillingHandler(s server.Server, hdlr BillingHandler, opts ...server.HandlerOption) error {
 	type billing interface {
 		SubscribeTier(ctx context.Context, in *SubscribeTierRequest, out *SubscribeTierResponse) error
-		ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, out *ListSubscriptionsResponse) error
+		ReadAccount(ctx context.Context, in *ReadAccountRequest, out *ReadAccountResponse) error
 		CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, out *CreateCheckoutSessionResponse) error
 		ListCards(ctx context.Context, in *ListCardsRequest, out *ListCardsResponse) error
 		ChargeCard(ctx context.Context, in *ChargeCardRequest, out *ChargeCardResponse) error
@@ -187,8 +185,8 @@ func (h *billingHandler) SubscribeTier(ctx context.Context, in *SubscribeTierReq
 	return h.BillingHandler.SubscribeTier(ctx, in, out)
 }
 
-func (h *billingHandler) ListSubscriptions(ctx context.Context, in *ListSubscriptionsRequest, out *ListSubscriptionsResponse) error {
-	return h.BillingHandler.ListSubscriptions(ctx, in, out)
+func (h *billingHandler) ReadAccount(ctx context.Context, in *ReadAccountRequest, out *ReadAccountResponse) error {
+	return h.BillingHandler.ReadAccount(ctx, in, out)
 }
 
 func (h *billingHandler) CreateCheckoutSession(ctx context.Context, in *CreateCheckoutSessionRequest, out *CreateCheckoutSessionResponse) error {

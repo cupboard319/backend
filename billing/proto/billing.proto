@@ -8,9 +8,8 @@ service Billing {
 	// Subscribe to a tier
 	rpc SubscribeTier(SubscribeTierRequest) returns (SubscribeTierResponse) {}
 
-	// List all the subscriptions for this user. Why list? Because it's possible in the future they may sign up for some other recurring billing thing AKA bundle e.g.  add $5/month for extra storage or something
-	rpc ListSubscriptions(ListSubscriptionsRequest) returns (ListSubscriptionsResponse) {}
 
+	rpc ReadAccount(ReadAccountRequest) returns (ReadAccountResponse) {}
 
 	// Proxy stripe endpoints
 
@@ -37,13 +36,6 @@ message Tier {
 	string description = 4;
 }
 
-message ListSubscriptionsRequest {
-
-}
-
-message ListSubscriptionsResponse {
-	repeated Subscription subscriptions = 1;
-}
 
 message Subscription {
 	string id = 1;
@@ -110,3 +102,19 @@ message GetPaymentResponse {
 	Payment payment = 1;
 }
 
+// Read an account either by account ID or admin ID
+message ReadAccountRequest {
+	string id = 1;
+	string admin_id = 2;
+}
+
+message ReadAccountResponse {
+	BillingAccount billing_account = 1;
+}
+
+message BillingAccount {
+	string id = 1;
+	repeated string admins = 2;
+	repeated string members = 3;
+	repeated Subscription subscriptions = 4;
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	alert "github.com/m3o/services/alert/proto/alert"
 	custpb "github.com/m3o/services/customers/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	custevents "github.com/m3o/services/pkg/events/proto/customers"
@@ -49,6 +50,8 @@ type Stripe struct {
 	signingSecret     string
 	testSigningSecret string
 	testMode          bool // are we in the test environment?
+
+	alertsSvc alert.AlertService
 }
 
 func NewHandler(serv *service.Service) stripepb.StripeHandler {
@@ -87,6 +90,7 @@ func NewHandler(serv *service.Service) stripepb.StripeHandler {
 		testClient:        stripeclient.New(configObj.TestAPIKey, nil),
 		testSigningSecret: configObj.TestSigningSecret,
 		testMode:          configObj.TestMode,
+		alertsSvc:         alert.NewAlertService("alert", serv.Client()),
 	}
 	s.consumeEvents()
 	return s
@@ -115,6 +119,8 @@ func (s *Stripe) Webhook(ctx context.Context, req *api.Request, rsp *api.Respons
 		return s.customerCreated(ctx, &ev, isTest)
 	case "charge.succeeded":
 		return s.chargeSucceeded(ctx, &ev)
+	case "charge.failed":
+		return s.chargeFailed(ctx, &ev)
 	case "payment_method.attached":
 		return s.paymentMethodAttached(ctx, &ev)
 	case "payment_method.detached":
@@ -217,6 +223,46 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 		log.Errorf("Error publishing event %s", err)
 		return err
 	}
+	s.alertsSvc.ReportEvent(ctx, &alert.ReportEventRequest{Event: &alert.Event{
+		Category: "payments",
+		Action:   "charge_failed",
+		Label:    "stripe",
+		Value:    1,
+		Metadata: map[string]string{"user": cm.ID, "error": ch.FailureMessage},
+	}})
+	log.Infof("Processing complete for %s", event.ID)
+	return nil
+}
+
+func (s *Stripe) chargeFailed(ctx context.Context, event *stripe.Event) error {
+	var ch stripe.Charge
+	if err := json.Unmarshal(event.Data.Raw, &ch); err != nil {
+		return err
+	}
+	// lookup the customer
+	cm, err := mappingForStripeCustomer(ch.Customer.ID)
+	if err != nil {
+		if err == store.ErrNotFound {
+			log.Errorf("Unrecognised customer for charge %s", ch.ID)
+			return nil
+		}
+		return err
+	}
+
+	if err := events.Publish(stripeevents.Topic, &stripeevents.Event{
+		Type: stripeevents.EventType_EventTypeChargeFailed,
+		ChargeSucceeded: &stripeevents.ChargeSuceeded{
+			CustomerId: cm.ID,
+			Currency:   string(ch.Currency), // TOOD
+			Amount:     ch.Amount,
+			ChargeId:   ch.ID,
+			Error:      ch.FailureMessage,
+		},
+	}); err != nil {
+		log.Errorf("Error publishing event %s", err)
+		return err
+	}
+
 	log.Infof("Processing complete for %s", event.ID)
 	return nil
 }

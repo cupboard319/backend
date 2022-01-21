@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package projectsevents;
+
+option go_package = "./proto;projects";
+
+enum EventType {
+  EventTypeUnknown = 0;
+  EventTypeProjectCreated = 1;
+  EventTypeProjectDeleted = 2;
+
+}
+
+message Event {
+  EventType type = 1;
+
+  ProjectCreated project_created = 2;
+  ProjectDeleted project_deleted = 3;
+}
+
+message ProjectCreated {
+  string id = 1;
+  string name = 2;
+  string billing_account = 3;
+}
+
+message ProjectDeleted {
+  string id = 1;
+  string name = 2;
+  string billing_account = 3;
+}

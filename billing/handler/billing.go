@@ -176,9 +176,11 @@ func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountR
 		log.Errorf("Error unmarshalling billing acc %s", err)
 		return errors.InternalServerError(method, "Error processing read, please try again")
 	}
-	response.BillingAccount.Subscriptions = []*billing.Subscription{{Id: b.lookupTierID(billingAcc.PriceID)}}
-	response.BillingAccount.Id = billingAcc.ID
-	response.BillingAccount.Admins = billingAcc.Admins
+	response.BillingAccount = &billing.BillingAccount{
+		Id:            billingAcc.ID,
+		Admins:        billingAcc.Admins,
+		Subscriptions: []*billing.Subscription{{Id: b.lookupTierID(billingAcc.PriceID)}},
+	}
 	return nil
 }
 

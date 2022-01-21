@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -134,12 +136,20 @@ func (e *Alert) ReportEvent(ctx context.Context, req *alert.ReportEventRequest, 
 		}
 	}
 	if e.config.Discord.Enabled {
-		rsp, err := http.Post(e.config.Discord.Webhook, "application/json", strings.NewReader(fmt.Sprintf(`{"content":"%s"}`, msg)))
+
+		discordMsg := map[string]interface{}{"content": msg}
+		b, _ := json.Marshal(discordMsg)
+		rsp, err := http.Post(e.config.Discord.Webhook, "application/json", bytes.NewBuffer(b))
 		if err != nil {
 			log.Errorf("Error sending to Discord %s", err)
 			return err
 		}
-		rsp.Body.Close()
+		defer rsp.Body.Close()
+		if rsp.StatusCode > 299 {
+			b, _ := ioutil.ReadAll(rsp.Body)
+			log.Errorf("Error sending to Discord %v %s", rsp.StatusCode, string(b))
+		}
+
 	}
 	return nil
 }

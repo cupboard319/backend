@@ -223,13 +223,6 @@ func (s *Stripe) chargeSucceeded(ctx context.Context, event *stripe.Event) error
 		log.Errorf("Error publishing event %s", err)
 		return err
 	}
-	s.alertsSvc.ReportEvent(ctx, &alert.ReportEventRequest{Event: &alert.Event{
-		Category: "payments",
-		Action:   "charge_failed",
-		Label:    "stripe",
-		Value:    1,
-		Metadata: map[string]string{"user": cm.ID, "error": ch.FailureMessage},
-	}})
 	log.Infof("Processing complete for %s", event.ID)
 	return nil
 }
@@ -262,6 +255,13 @@ func (s *Stripe) chargeFailed(ctx context.Context, event *stripe.Event) error {
 		log.Errorf("Error publishing event %s", err)
 		return err
 	}
+	s.alertsSvc.ReportEvent(ctx, &alert.ReportEventRequest{Event: &alert.Event{
+		Category: "payments",
+		Action:   "charge_failed",
+		Label:    "stripe",
+		Value:    1,
+		Metadata: map[string]string{"user": cm.ID, "error": ch.FailureMessage},
+	}})
 
 	log.Infof("Processing complete for %s", event.ID)
 	return nil
@@ -479,6 +479,14 @@ func (s *Stripe) ChargeCard(ctx context.Context, request *stripepb.ChargeCardReq
 	intent, err = c.PaymentIntents.Confirm(intent.ID, nil)
 	if err != nil {
 		log.Errorf("Error confirming payment intent %s", err)
+		s.alertsSvc.ReportEvent(ctx, &alert.ReportEventRequest{Event: &alert.Event{
+			Category: "payments",
+			Action:   "charge_failed",
+			Label:    "stripe",
+			Value:    1,
+			Metadata: map[string]string{"user": cm.ID, "error": intent.LastPaymentError.Error()},
+		}})
+
 		return err
 	}
 	if intent.Status != stripe.PaymentIntentStatusRequiresAction {

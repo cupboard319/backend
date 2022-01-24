@@ -76,7 +76,7 @@ func (v1 *V1) GenerateKey(ctx context.Context, req *pb.GenerateKeyRequest, rsp *
 
 	// TODO, project ID should be passed in on request
 	// which project are we assigning this to?
-	projRsp, err := v1.projSvc.List(ctx, &projects.ListRequest{CustomerId: acc.ID})
+	projRsp, err := v1.projSvc.List(ctx, &projects.ListRequest{})
 	if err != nil {
 		log.Errorf("Error retrieving project list %s", err)
 		return errors.InternalServerError(method, "Failed to generate api key")

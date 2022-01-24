@@ -8,6 +8,14 @@ service Projects {
 	rpc Create(CreateRequest) returns (CreateResponse) {}
 	rpc Read(ReadRequest) returns (ReadResponse) {}
 	rpc List(ListRequest) returns (ListResponse) {}
+	rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+
+	rpc SendInvite(SendInviteRequest) returns (SendInviteResponse) {}
+	rpc AcceptInvite(AcceptInviteRequest) returns (AcceptInviteResponse) {}
+	rpc ListInvites(ListInvitesRequest) returns (ListInvitesResponse) {}
+	rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse) {}
+
+	rpc AssignQuotas(AssignQuotasRequest) returns (AssignQuotasResponse) {}
 }
 
 message CreateRequest {
@@ -46,4 +54,55 @@ message ListRequest {
 
 message ListResponse {
 	repeated Project projects = 1;
+}
+
+message SendInviteRequest {
+	string email = 1;
+	string project = 2;
+	repeated string roles = 3;
+}
+
+message SendInviteResponse {}
+
+message AcceptInviteRequest {
+	string project = 1;
+}
+
+message AcceptInviteResponse {}
+
+message ListInvitesRequest {}
+
+message ListInvitesResponse {
+	repeated Invite invites = 1;
+}
+
+message Invite {
+	string project = 1;
+	string inviter = 2;
+	int64 created = 3;
+}
+
+message RemoveMemberRequest {
+	string member_id = 1;
+}
+
+message RemoveMemberResponse {}
+
+message AssignQuotasRequest {
+	repeated Quota quotas = 1;
+}
+
+message Quota {
+	string project_id = 1;
+	int64 free_quota = 2;
+	int64 balance = 3;
+}
+
+message AssignQuotasResponse {}
+
+message DeleteRequest {
+	string project_id = 1;
+}
+
+message DeleteResponse {
 }

@@ -98,7 +98,45 @@ func (b *Billing) storeBillingAccount(billingAcc *BillingAccount) error {
 }
 
 func (b *Billing) processCustomerDelete(ctx context.Context, event *custpb.Event) error {
-	// TODO SUBSCRIPTIONS remove sa owner of billing account, delete if no other owners of the billing account
+	recs, err := store.Read(adminKey(event.Customer.Id))
+	if err != nil && err != store.ErrNotFound {
+		logger.Errorf("Error looking for billing account %s", err)
+		return err
+	}
+	if len(recs) == 0 {
+		return nil
+	}
+	var billAcc BillingAccount
+	if err := json.Unmarshal(recs[0].Value, &billAcc); err != nil {
+		logger.Errorf("Error unmarshalling acc %s", err)
+		return nil
+	}
+	if len(billAcc.Admins) != 1 {
+		// remove this user as admin
+		admins := []string{}
+		for _, v := range billAcc.Admins {
+			if v == event.Customer.Id {
+				continue
+			}
+			admins = append(admins, v)
+		}
+		billAcc.Admins = admins
+		if err := b.storeBillingAccount(&billAcc); err != nil {
+			return err
+		}
+
+	} else {
+		// deletee the entry
+		if err := store.Delete(billingAccKey(billAcc.ID)); err != nil {
+			return err
+		}
+	}
+
+	// delete the entry for this admin
+	if err := store.Delete(adminKey(event.Customer.Id)); err != nil {
+		return err
+	}
+
 	return nil
 }
 

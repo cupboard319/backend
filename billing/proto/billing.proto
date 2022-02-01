@@ -19,6 +19,7 @@ service Billing {
 	rpc DeleteCard(DeleteCardRequest) returns (DeleteCardResponse);
 	rpc ListPayments(ListPaymentsRequest) returns (ListPaymentsResponse);
 	rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+	rpc SetupCard(SetupCardRequest) returns (SetupCardResponse);
 }
 
 
@@ -117,4 +118,10 @@ message BillingAccount {
 	repeated string admins = 2;
 	repeated string members = 3;
 	repeated Subscription subscriptions = 4;
+}
+
+message SetupCardRequest {}
+
+message SetupCardResponse {
+	string client_secret = 1;
 }

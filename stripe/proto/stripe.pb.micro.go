@@ -50,6 +50,7 @@ type StripeService interface {
 	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...client.CallOption) (*GetPaymentResponse, error)
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...client.CallOption) (*SubscribeResponse, error)
 	Unsubscribe(ctx context.Context, in *UnsubscribeRequest, opts ...client.CallOption) (*UnsubscribeResponse, error)
+	SetupCard(ctx context.Context, in *SetupCardRequest, opts ...client.CallOption) (*SetupCardResponse, error)
 }
 
 type stripeService struct {
@@ -144,6 +145,16 @@ func (c *stripeService) Unsubscribe(ctx context.Context, in *UnsubscribeRequest,
 	return out, nil
 }
 
+func (c *stripeService) SetupCard(ctx context.Context, in *SetupCardRequest, opts ...client.CallOption) (*SetupCardResponse, error) {
+	req := c.c.NewRequest(c.name, "Stripe.SetupCard", in)
+	out := new(SetupCardResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Stripe service
 
 type StripeHandler interface {
@@ -155,6 +166,7 @@ type StripeHandler interface {
 	GetPayment(context.Context, *GetPaymentRequest, *GetPaymentResponse) error
 	Subscribe(context.Context, *SubscribeRequest, *SubscribeResponse) error
 	Unsubscribe(context.Context, *UnsubscribeRequest, *UnsubscribeResponse) error
+	SetupCard(context.Context, *SetupCardRequest, *SetupCardResponse) error
 }
 
 func RegisterStripeHandler(s server.Server, hdlr StripeHandler, opts ...server.HandlerOption) error {
@@ -167,6 +179,7 @@ func RegisterStripeHandler(s server.Server, hdlr StripeHandler, opts ...server.H
 		GetPayment(ctx context.Context, in *GetPaymentRequest, out *GetPaymentResponse) error
 		Subscribe(ctx context.Context, in *SubscribeRequest, out *SubscribeResponse) error
 		Unsubscribe(ctx context.Context, in *UnsubscribeRequest, out *UnsubscribeResponse) error
+		SetupCard(ctx context.Context, in *SetupCardRequest, out *SetupCardResponse) error
 	}
 	type Stripe struct {
 		stripe
@@ -209,4 +222,8 @@ func (h *stripeHandler) Subscribe(ctx context.Context, in *SubscribeRequest, out
 
 func (h *stripeHandler) Unsubscribe(ctx context.Context, in *UnsubscribeRequest, out *UnsubscribeResponse) error {
 	return h.StripeHandler.Unsubscribe(ctx, in, out)
+}
+
+func (h *stripeHandler) SetupCard(ctx context.Context, in *SetupCardRequest, out *SetupCardResponse) error {
+	return h.StripeHandler.SetupCard(ctx, in, out)
 }

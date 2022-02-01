@@ -263,3 +263,12 @@ func (b *Billing) GetPayment(ctx context.Context, request *billing.GetPaymentReq
 	}
 	return nil
 }
+
+func (b *Billing) SetupCard(ctx context.Context, request *billing.SetupCardRequest, response *billing.SetupCardResponse) error {
+	rsp, err := b.stripeSvc.SetupCard(ctx, &stripe.SetupCardRequest{})
+	if err != nil {
+		return err
+	}
+	response.ClientSecret = rsp.ClientSecret
+	return nil
+}

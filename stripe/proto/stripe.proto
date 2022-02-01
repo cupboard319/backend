@@ -13,6 +13,7 @@ service Stripe {
 	rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
 	rpc Subscribe(SubscribeRequest) returns (SubscribeResponse);
 	rpc Unsubscribe(UnsubscribeRequest) returns (UnsubscribeResponse);
+	rpc SetupCard(SetupCardRequest) returns (SetupCardResponse);
 }
 
 message CreateCheckoutSessionRequest {
@@ -88,4 +89,10 @@ message UnsubscribeRequest {
 }
 
 message UnsubscribeResponse {
+}
+
+message SetupCardRequest {}
+
+message SetupCardResponse {
+	string client_secret = 1;
 }

@@ -332,12 +332,14 @@ func (s *Stripe) paymentMethodDetached(ctx context.Context, event *stripe.Event)
 }
 
 func (s *Stripe) CreateCheckoutSession(ctx context.Context, request *stripepb.CreateCheckoutSessionRequest, response *stripepb.CreateCheckoutSessionResponse) error {
+	method := "stripe.CreateCheckoutSession"
+	errInternal := errors.InternalServerError(method, "Error creating checkout session")
 	acc, ok := auth.AccountFromContext(ctx)
 	if !ok {
-		return errors.Unauthorized("stripe.CreateCheckoutSession", "Unauthorized")
+		return errors.Unauthorized(method, "Unauthorized")
 	}
 	if !request.SaveCard && request.Amount < 1000 { // min spend
-		return errors.BadRequest("stripe.CreateCheckoutSession", "Amount must be at least 1000")
+		return errors.BadRequest(method, "Amount must be at least 1000")
 	}
 
 	c := s.client
@@ -375,7 +377,7 @@ func (s *Stripe) CreateCheckoutSession(ctx context.Context, request *stripepb.Cr
 	recs, err := store.Read(fmt.Sprintf(prefixM3OID, acc.ID))
 	if err != nil && err != store.ErrNotFound {
 		log.Errorf("Error looking up stripe customer %s", err)
-		return errors.InternalServerError("stripe.CreateCheckoutSession", "Error creating checkout session")
+		return errInternal
 
 	}
 	if len(recs) == 0 {
@@ -384,23 +386,11 @@ func (s *Stripe) CreateCheckoutSession(ctx context.Context, request *stripepb.Cr
 			// in payment mode stripe will auto create a customer object for you
 			params.CustomerEmail = stripe.String(acc.Name)
 		} else {
-			// create a customer obj and attach
-			cust, err := c.Customers.New(&stripe.CustomerParams{
-				Email: stripe.String(acc.Name),
-			})
+			custID, err := s.createAndStoreStripeCust(method, acc)
 			if err != nil {
-				log.Errorf("Error creating stripe customer %s", err)
-				return errors.InternalServerError("stripe.CreateCheckoutSession", "Error creating checkout session")
+				return err
 			}
-			cm := CustomerMapping{
-				ID:       acc.ID,
-				StripeID: cust.ID,
-			}
-			if err := s.storeMapping(&cm); err != nil {
-				log.Errorf("Error storing stripe customer mapping %s", err)
-				return errors.InternalServerError("stripe.CreateCheckoutSession", "Error creating checkout session")
-			}
-			params.Customer = stripe.String(cust.ID)
+			params.Customer = stripe.String(custID)
 		}
 	} else {
 		// use existing customer obj
@@ -415,6 +405,30 @@ func (s *Stripe) CreateCheckoutSession(ctx context.Context, request *stripepb.Cr
 
 	response.Id = session.ID
 	return nil
+}
+
+func (s *Stripe) createAndStoreStripeCust(method string, acc *auth.Account) (string, error) {
+	c := s.client
+	if strings.HasSuffix(acc.Name, "@m3o.com") {
+		c = s.testClient
+	}
+	// create a customer obj and attach
+	cust, err := c.Customers.New(&stripe.CustomerParams{
+		Email: stripe.String(acc.Name),
+	})
+	if err != nil {
+		log.Errorf("Error creating stripe customer %s", err)
+		return "", errors.InternalServerError(method, "Error creating checkout session")
+	}
+	cm := CustomerMapping{
+		ID:       acc.ID,
+		StripeID: cust.ID,
+	}
+	if err := s.storeMapping(&cm); err != nil {
+		log.Errorf("Error storing stripe customer mapping %s", err)
+		return "", errors.InternalServerError(method, "Error creating checkout session")
+	}
+	return cust.ID, nil
 }
 
 func (s *Stripe) ListCards(ctx context.Context, request *stripepb.ListCardsRequest, response *stripepb.ListCardsResponse) error {
@@ -681,5 +695,49 @@ func (s *Stripe) Unsubscribe(ctx context.Context, request *stripepb.UnsubscribeR
 		log.Errorf("Failed to cancel subscription, status is not cancelled %+v", sub)
 		return errors.InternalServerError(method, "Subscription cancellation failed")
 	}
+	return nil
+}
+
+func (s *Stripe) SetupCard(ctx context.Context, request *stripepb.SetupCardRequest, response *stripepb.SetupCardResponse) error {
+	method := "stripe.SetupCard"
+	errInternal := errors.InternalServerError(method, "Error creating card setup intent")
+	acc, ok := auth.AccountFromContext(ctx)
+	if !ok {
+		return errors.Unauthorized(method, "Unauthorized")
+	}
+
+	c := s.client
+	if strings.HasSuffix(acc.Name, "@m3o.com") {
+		c = s.testClient
+	}
+
+	params := &stripe.SetupIntentParams{}
+
+	// lookup customer
+	recs, err := store.Read(fmt.Sprintf(prefixM3OID, acc.ID))
+	if err != nil && err != store.ErrNotFound {
+		log.Errorf("Error looking up stripe customer %s", err)
+		return errInternal
+
+	}
+	if len(recs) == 0 {
+		custID, err := s.createAndStoreStripeCust(method, acc)
+		if err != nil {
+			return err
+		}
+		params.Customer = stripe.String(custID)
+	} else {
+		// use existing customer obj
+		var cm CustomerMapping
+		json.Unmarshal(recs[0].Value, &cm)
+		params.Customer = stripe.String(cm.StripeID)
+	}
+	intent, err := c.SetupIntents.New(params)
+	if err != nil {
+		logger.Errorf("Error setting up intent %s", err)
+		return errInternal
+	}
+
+	response.ClientSecret = intent.ClientSecret
 	return nil
 }

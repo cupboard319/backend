@@ -51,6 +51,7 @@ type BillingService interface {
 	DeleteCard(ctx context.Context, in *DeleteCardRequest, opts ...client.CallOption) (*DeleteCardResponse, error)
 	ListPayments(ctx context.Context, in *ListPaymentsRequest, opts ...client.CallOption) (*ListPaymentsResponse, error)
 	GetPayment(ctx context.Context, in *GetPaymentRequest, opts ...client.CallOption) (*GetPaymentResponse, error)
+	SetupCard(ctx context.Context, in *SetupCardRequest, opts ...client.CallOption) (*SetupCardResponse, error)
 }
 
 type billingService struct {
@@ -145,6 +146,16 @@ func (c *billingService) GetPayment(ctx context.Context, in *GetPaymentRequest, 
 	return out, nil
 }
 
+func (c *billingService) SetupCard(ctx context.Context, in *SetupCardRequest, opts ...client.CallOption) (*SetupCardResponse, error) {
+	req := c.c.NewRequest(c.name, "Billing.SetupCard", in)
+	out := new(SetupCardResponse)
+	err := c.c.Call(ctx, req, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Billing service
 
 type BillingHandler interface {
@@ -157,6 +168,7 @@ type BillingHandler interface {
 	DeleteCard(context.Context, *DeleteCardRequest, *DeleteCardResponse) error
 	ListPayments(context.Context, *ListPaymentsRequest, *ListPaymentsResponse) error
 	GetPayment(context.Context, *GetPaymentRequest, *GetPaymentResponse) error
+	SetupCard(context.Context, *SetupCardRequest, *SetupCardResponse) error
 }
 
 func RegisterBillingHandler(s server.Server, hdlr BillingHandler, opts ...server.HandlerOption) error {
@@ -169,6 +181,7 @@ func RegisterBillingHandler(s server.Server, hdlr BillingHandler, opts ...server
 		DeleteCard(ctx context.Context, in *DeleteCardRequest, out *DeleteCardResponse) error
 		ListPayments(ctx context.Context, in *ListPaymentsRequest, out *ListPaymentsResponse) error
 		GetPayment(ctx context.Context, in *GetPaymentRequest, out *GetPaymentResponse) error
+		SetupCard(ctx context.Context, in *SetupCardRequest, out *SetupCardResponse) error
 	}
 	type Billing struct {
 		billing
@@ -211,4 +224,8 @@ func (h *billingHandler) ListPayments(ctx context.Context, in *ListPaymentsReque
 
 func (h *billingHandler) GetPayment(ctx context.Context, in *GetPaymentRequest, out *GetPaymentResponse) error {
 	return h.BillingHandler.GetPayment(ctx, in, out)
+}
+
+func (h *billingHandler) SetupCard(ctx context.Context, in *SetupCardRequest, out *SetupCardResponse) error {
+	return h.BillingHandler.SetupCard(ctx, in, out)
 }

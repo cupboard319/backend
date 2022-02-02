@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/google/uuid"
 	billing "github.com/m3o/services/billing/proto"
 	"github.com/m3o/services/pkg/auth"
 	custevents "github.com/m3o/services/pkg/events/proto/customers"
@@ -167,14 +168,23 @@ func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountR
 		log.Errorf("Error processing read %s", err)
 		return errors.InternalServerError(method, "Error processing read, please try again")
 	}
-	if len(recs) == 0 {
-		log.Errorf("No billing account found for user %s", acc.ID)
-		return errors.InternalServerError(method, "Error processing read, please try again")
-	}
 	var billingAcc BillingAccount
-	if err := json.Unmarshal(recs[0].Value, &billingAcc); err != nil {
-		log.Errorf("Error unmarshalling billing acc %s", err)
-		return errors.InternalServerError(method, "Error processing read, please try again")
+	if len(recs) == 0 {
+		log.Infof("No billing account found for user %s, creating", acc.ID)
+		billingAcc = BillingAccount{
+			ID:      uuid.New().String(),
+			Admins:  []string{acc.ID},
+			PriceID: "free",
+		}
+		if err := b.storeBillingAccount(&billingAcc); err != nil {
+			log.Errorf("Error processing read %s", err)
+			return errors.InternalServerError(method, "Error processing read, please try again")
+		}
+	} else {
+		if err := json.Unmarshal(recs[0].Value, &billingAcc); err != nil {
+			log.Errorf("Error unmarshalling billing acc %s", err)
+			return errors.InternalServerError(method, "Error processing read, please try again")
+		}
 	}
 	response.BillingAccount = &billing.BillingAccount{
 		Id:            billingAcc.ID,

@@ -65,7 +65,7 @@ func adminKey(userID string) string {
 func (b *Billing) processAddPaymentMethod(ctx context.Context, event *custpb.Event) error {
 	// add a billing account if required
 	// does the user who added the card have a billing account already?
-	recs, err := store.Read(fmt.Sprintf("%s/%s", prefixAccByAdmin, event.Customer.Id))
+	recs, err := store.Read(adminKey(event.Customer.Id))
 	if err != nil && err != store.ErrNotFound {
 		// try again
 		logger.Errorf("Error looking up billing account %s", err)
@@ -77,8 +77,9 @@ func (b *Billing) processAddPaymentMethod(ctx context.Context, event *custpb.Eve
 	}
 	// create a new billing account
 	billingAcc := BillingAccount{
-		ID:     uuid.New().String(),
-		Admins: []string{event.Customer.Id},
+		ID:      uuid.New().String(),
+		Admins:  []string{event.Customer.Id},
+		PriceID: "free",
 	}
 	return b.storeBillingAccount(&billingAcc)
 }

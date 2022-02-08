@@ -100,6 +100,21 @@ type FakeStripeService struct {
 		result1 *stripe.ListPaymentsResponse
 		result2 error
 	}
+	SetupCardStub        func(context.Context, *stripe.SetupCardRequest, ...client.CallOption) (*stripe.SetupCardResponse, error)
+	setupCardMutex       sync.RWMutex
+	setupCardArgsForCall []struct {
+		arg1 context.Context
+		arg2 *stripe.SetupCardRequest
+		arg3 []client.CallOption
+	}
+	setupCardReturns struct {
+		result1 *stripe.SetupCardResponse
+		result2 error
+	}
+	setupCardReturnsOnCall map[int]struct {
+		result1 *stripe.SetupCardResponse
+		result2 error
+	}
 	SubscribeStub        func(context.Context, *stripe.SubscribeRequest, ...client.CallOption) (*stripe.SubscribeResponse, error)
 	subscribeMutex       sync.RWMutex
 	subscribeArgsForCall []struct {
@@ -530,6 +545,72 @@ func (fake *FakeStripeService) ListPaymentsReturnsOnCall(i int, result1 *stripe.
 	}{result1, result2}
 }
 
+func (fake *FakeStripeService) SetupCard(arg1 context.Context, arg2 *stripe.SetupCardRequest, arg3 ...client.CallOption) (*stripe.SetupCardResponse, error) {
+	fake.setupCardMutex.Lock()
+	ret, specificReturn := fake.setupCardReturnsOnCall[len(fake.setupCardArgsForCall)]
+	fake.setupCardArgsForCall = append(fake.setupCardArgsForCall, struct {
+		arg1 context.Context
+		arg2 *stripe.SetupCardRequest
+		arg3 []client.CallOption
+	}{arg1, arg2, arg3})
+	stub := fake.SetupCardStub
+	fakeReturns := fake.setupCardReturns
+	fake.recordInvocation("SetupCard", []interface{}{arg1, arg2, arg3})
+	fake.setupCardMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2, arg3...)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeStripeService) SetupCardCallCount() int {
+	fake.setupCardMutex.RLock()
+	defer fake.setupCardMutex.RUnlock()
+	return len(fake.setupCardArgsForCall)
+}
+
+func (fake *FakeStripeService) SetupCardCalls(stub func(context.Context, *stripe.SetupCardRequest, ...client.CallOption) (*stripe.SetupCardResponse, error)) {
+	fake.setupCardMutex.Lock()
+	defer fake.setupCardMutex.Unlock()
+	fake.SetupCardStub = stub
+}
+
+func (fake *FakeStripeService) SetupCardArgsForCall(i int) (context.Context, *stripe.SetupCardRequest, []client.CallOption) {
+	fake.setupCardMutex.RLock()
+	defer fake.setupCardMutex.RUnlock()
+	argsForCall := fake.setupCardArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+}
+
+func (fake *FakeStripeService) SetupCardReturns(result1 *stripe.SetupCardResponse, result2 error) {
+	fake.setupCardMutex.Lock()
+	defer fake.setupCardMutex.Unlock()
+	fake.SetupCardStub = nil
+	fake.setupCardReturns = struct {
+		result1 *stripe.SetupCardResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeStripeService) SetupCardReturnsOnCall(i int, result1 *stripe.SetupCardResponse, result2 error) {
+	fake.setupCardMutex.Lock()
+	defer fake.setupCardMutex.Unlock()
+	fake.SetupCardStub = nil
+	if fake.setupCardReturnsOnCall == nil {
+		fake.setupCardReturnsOnCall = make(map[int]struct {
+			result1 *stripe.SetupCardResponse
+			result2 error
+		})
+	}
+	fake.setupCardReturnsOnCall[i] = struct {
+		result1 *stripe.SetupCardResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeStripeService) Subscribe(arg1 context.Context, arg2 *stripe.SubscribeRequest, arg3 ...client.CallOption) (*stripe.SubscribeResponse, error) {
 	fake.subscribeMutex.Lock()
 	ret, specificReturn := fake.subscribeReturnsOnCall[len(fake.subscribeArgsForCall)]
@@ -677,6 +758,8 @@ func (fake *FakeStripeService) Invocations() map[string][][]interface{} {
 	defer fake.listCardsMutex.RUnlock()
 	fake.listPaymentsMutex.RLock()
 	defer fake.listPaymentsMutex.RUnlock()
+	fake.setupCardMutex.RLock()
+	defer fake.setupCardMutex.RUnlock()
 	fake.subscribeMutex.RLock()
 	defer fake.subscribeMutex.RUnlock()
 	fake.unsubscribeMutex.RLock()

@@ -85,9 +85,7 @@ func (c *counter) deleteUser(ctx context.Context, userID string) error {
 		}
 		return err
 	}
-	if len(keys) == 0 {
-		return nil
-	}
+	keys = append(keys, fmt.Sprintf("%s:%s", prefixResetDay, userID))
 	if err := c.redisClient.Del(ctx, keys...).Err(); err != nil && err != redis.Nil {
 		return err
 	}
@@ -145,4 +143,28 @@ func (c *counter) listMonthliesForUser(userID string, t time.Time) ([]listEntry,
 		})
 	}
 	return res, iter.Err()
+}
+
+// usageTime gives the current month for usage calculations
+func (c *counter) usageTime(id string, t time.Time) (time.Time, error) {
+	// lookup this ID's reset day of the month
+	ctx := context.Background()
+	day, err := c.redisClient.Get(ctx, fmt.Sprintf("%s:%s", prefixResetDay, id)).Int64()
+	if err != nil && err != redis.Nil {
+		return t, err
+	}
+	// if none return t
+	if day == 0 {
+		return t, nil
+	}
+	// return t - 1 month if we have not passed reset day
+	if t.Day() < int(day) {
+		return t.AddDate(0, -1, 0), nil
+	}
+	// else return t
+	return t, nil
+}
+
+func (c *counter) setResetDay(ctx context.Context, id string, day int64) error {
+	return c.redisClient.Set(ctx, fmt.Sprintf("%s:%s", prefixResetDay, id), day, 0).Err()
 }

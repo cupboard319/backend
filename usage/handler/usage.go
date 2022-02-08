@@ -29,6 +29,7 @@ import (
 
 const (
 	prefixCounter         = "usage-service/counter"
+	prefixResetDay        = "usage-service/resetDay"
 	prefixUsageByCustomer = "usageByCustomer" // customer ID / date
 	counterTTL            = 48 * time.Hour
 	counterMonthlyTTL     = 40 * 24 * time.Hour

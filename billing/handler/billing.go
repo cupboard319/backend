@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 	billing "github.com/m3o/services/billing/proto"
@@ -33,10 +34,11 @@ type Tier struct {
 
 // BillingAccount is the entity that owns the subscription, etc
 type BillingAccount struct {
-	ID      string
-	Admins  []string // a billing account can have multiple admins, but an admin can only admin one account
-	PriceID string   // ID of the Stripe price for the subscription tier, "free" or  "price_198234aksjfh"
-	SubID   string   // Stripe subscription ID "sub_1o283yklajdfn"
+	ID                  string
+	Admins              []string // a billing account can have multiple admins, but an admin can only admin one account
+	PriceID             string   // ID of the Stripe price for the subscription tier, "free" or  "price_198234aksjfh"
+	SubID               string   // Stripe subscription ID "sub_1o283yklajdfn"
+	SubscriptionCreated time.Time
 }
 
 func New(svc *service.Service) *Billing {
@@ -109,7 +111,9 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 	}
 
 	subID := ""
+	subCreated := time.Time{}
 	if priceID != "free" {
+		subCreated = time.Now()
 		rsp, err := b.stripeSvc.Subscribe(ctx, &stripe.SubscribeRequest{
 			PriceId: priceID,
 			CardId:  request.CardId,
@@ -124,6 +128,7 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 	// Update billing acc
 	billingAcc.SubID = subID
 	billingAcc.PriceID = priceID
+	billingAcc.SubscriptionCreated = subCreated
 	if err := b.storeBillingAccount(&billingAcc); err != nil {
 		return errors.InternalServerError(method, "Error processing subscription. please try again")
 	}

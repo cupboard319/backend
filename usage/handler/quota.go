@@ -32,7 +32,9 @@ func (p *UsageSvc) switchTier(customerID, tier string) error {
 		return err
 	}
 	q.Tier = tier
-	return store.Write(store.NewRecord(quotaByCustKey(customerID), q))
+	if err := store.Write(store.NewRecord(quotaByCustKey(customerID), q)); err != nil {
+		return err
+	}
 }
 
 const (

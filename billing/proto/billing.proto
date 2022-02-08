@@ -23,6 +23,7 @@ service Billing {
 }
 
 
+
 message SubscribeTierRequest {
 	string id = 1; // ID of the tier - free, pro, team
 	string card_id = 2; // The card to charge
@@ -118,6 +119,7 @@ message BillingAccount {
 	repeated string admins = 2;
 	repeated string members = 3;
 	repeated Subscription subscriptions = 4;
+	int64 subscription_created = 5;
 }
 
 message SetupCardRequest {}

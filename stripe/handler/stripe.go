@@ -301,7 +301,10 @@ func (s *Stripe) paymentMethodDetached(ctx context.Context, event *stripe.Event)
 	if err := json.Unmarshal(event.Data.Raw, &paymtMethod); err != nil {
 		return err
 	}
-	custID := paymtMethod.Customer.ID
+	custID := ""
+	if paymtMethod.Customer != nil {
+		custID = paymtMethod.Customer.ID
+	}
 
 	if len(custID) == 0 {
 		custID = event.GetPreviousValue("customer")

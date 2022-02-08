@@ -95,6 +95,7 @@ type Balance struct {
 	c         *counter // counts the balance. Balance is expressed in 1/10,000ths of a cent which allows us to price in fractions e.g. a request costs 0.0001 cents or 10,000 requests for 1 cent
 	v1Svc     v1.V1Service
 	stripeSvc stripe.StripeService
+	margin    float64
 }
 
 func NewHandler(svc *service.Service) *Balance {
@@ -121,10 +122,16 @@ func NewHandler(svc *service.Service) *Balance {
 			InsecureSkipVerify: false,
 		},
 	})
+	mval, err := config.Get("micro.balance.margin")
+	if err != nil {
+		log.Fatalf("No margin config found")
+	}
+
 	b := &Balance{
 		c:         &counter{redisClient: rc},
 		v1Svc:     v1.NewV1Service("v1", svc.Client()),
 		stripeSvc: stripe.NewStripeService("stripe", svc.Client()),
+		margin:    mval.Float64(0.2),
 	}
 	go b.consumeEvents()
 	return b

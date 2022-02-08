@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"strconv"
 
 	pevents "github.com/m3o/services/pkg/events"
@@ -114,8 +115,14 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 	// multiple projects then credit this to a master balance, ready to be allocated
 	// if a project is deleted we need to reallocate the balance. If only one project left sweep everything in to
 	// the remaining project. If multiple then sweep it back in to the parent account balance
+	amt := ev.Amount * 10000
+	description := "Funds added"
+	if srsp.Payment.Description != "M3O funds" {
+		// this is a subscription payment, apply margin
+		amt = int64(math.Ceil(float64(amt) * (1 - b.margin)))
+	}
 
-	adj, err := storeAdjustment(ev.CustomerId, ev.Amount*10000, ev.CustomerId, "Funds added", true, map[string]string{
+	adj, err := storeAdjustment(ev.CustomerId, amt, ev.CustomerId, description, true, map[string]string{
 		"receipt_url": srsp.Payment.ReceiptUrl,
 	})
 	if err != nil {
@@ -124,7 +131,7 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 
 	// add to balance. We do this LAST in case we error doing anything else and cause a double count
 	// stripe event is in cents, multiply by 10000 to get the fraction that balance represents
-	_, err = b.c.incr(ctx, ev.CustomerId, "$balance$", ev.Amount*10000)
+	_, err = b.c.incr(ctx, ev.CustomerId, "$balance$", amt)
 	if err != nil {
 		logger.Errorf("Error incrementing balance %s", err)
 	}

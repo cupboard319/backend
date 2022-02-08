@@ -61,6 +61,7 @@ message Payment {
 	string currency = 3;
 	int64 date = 4;
 	string receipt_url = 5;
+	string description = 6;
 }
 
 message ListPaymentsResponse {

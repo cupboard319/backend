@@ -120,6 +120,7 @@ func (b *Balance) processChargeSucceeded(ctx context.Context, ev *stripeevents.C
 	if srsp.Payment.Description != "M3O funds" {
 		// this is a subscription payment, apply margin
 		amt = int64(math.Ceil(float64(amt) * (1 - b.margin)))
+		description = "Subscription funds added"
 	}
 
 	adj, err := storeAdjustment(ev.CustomerId, amt, ev.CustomerId, description, true, map[string]string{

@@ -421,7 +421,7 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 	balObj := <-balChan
 	// no quota left, check balance to see if we can pay for this invocation
 	if balObj.err != nil {
-		log.Errorf("Failed to retrieve balance for customer %s %s", apiRec.UserID, err)
+		log.Errorf("Failed to retrieve balance for customer %s %s", apiRec.UserID, balObj.err)
 		// fail open
 		return fmt.Sprintf("%d", price), nil
 	}

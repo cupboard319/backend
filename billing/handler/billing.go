@@ -145,6 +145,7 @@ func (b *Billing) SubscribeTier(ctx context.Context, request *billing.SubscribeT
 func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountRequest, response *billing.ReadAccountResponse) error {
 	method := "billing.ReadAccount"
 	key := ""
+	adminID := ""
 	acc, err := auth.VerifyMicroAdmin(ctx, method)
 	if err != nil {
 		acc, err = auth.VerifyMicroCustomer(ctx, method)
@@ -152,10 +153,12 @@ func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountR
 			return err
 		}
 		key = adminKey(acc.ID)
+		adminID = acc.ID
 	} else {
 		if len(request.Id) > 0 {
 			key = billingAccKey(request.Id)
 		} else if len(request.AdminId) > 0 {
+			adminID = request.AdminId
 			key = adminKey(request.AdminId)
 		} else {
 			return errors.BadRequest(method, "Missing id or admin_id param")
@@ -169,10 +172,13 @@ func (b *Billing) ReadAccount(ctx context.Context, request *billing.ReadAccountR
 	}
 	var billingAcc BillingAccount
 	if len(recs) == 0 {
+		if adminID == "" {
+			return errors.NotFound(method, "Not found")
+		}
 		log.Infof("No billing account found for user %s, creating", acc.ID)
 		billingAcc = BillingAccount{
 			ID:      uuid.New().String(),
-			Admins:  []string{acc.ID},
+			Admins:  []string{adminID},
 			PriceID: "free",
 		}
 		if err := b.storeBillingAccount(&billingAcc); err != nil {

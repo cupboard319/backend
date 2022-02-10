@@ -391,7 +391,7 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 
 	useObj := <-useChan
 	if useObj.err != nil {
-		log.Errorf("Failed to retrieve usage %s", err)
+		log.Errorf("Failed to retrieve usage %s", useObj.err)
 		// fail open
 		return "free", nil
 	}

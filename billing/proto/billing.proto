@@ -103,10 +103,11 @@ message GetPaymentResponse {
 	Payment payment = 1;
 }
 
-// Read an account either by account ID or admin ID
+// Read an account either by account ID or admin ID or project ID
 message ReadAccountRequest {
 	string id = 1;
 	string admin_id = 2;
+	string project_id = 3;
 }
 
 message ReadAccountResponse {

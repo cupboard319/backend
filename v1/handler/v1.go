@@ -17,6 +17,7 @@ import (
 	"github.com/golang-jwt/jwt"
 	alertpb "github.com/m3o/services/alert/proto/alert"
 	balance "github.com/m3o/services/balance/proto"
+	billing "github.com/m3o/services/billing/proto"
 	m3oauth "github.com/m3o/services/pkg/auth"
 	"github.com/m3o/services/pkg/events/proto/requests"
 	projects "github.com/m3o/services/projects/proto"
@@ -55,10 +56,11 @@ type V1 struct {
 	limiter        *limiter
 	config         cfg
 	projSvc        projects.ProjectsService
+	tierCache      *tierCache
 }
 
 type cfg struct {
-	RateLimit int64
+	RateLimits map[string]int64 `json:"rate-limits"`
 }
 
 const (
@@ -116,9 +118,14 @@ func NewHandler(srv *service.Service) *V1 {
 	if err := val.Scan(&conf); err != nil {
 		log.Fatalf("Failed to load config %s", err)
 	}
-	if conf.RateLimit == 0 {
-		conf.RateLimit = 100
+	if len(conf.RateLimits) == 0 {
+		log.Fatalf("Failed to load rate limits config")
 	}
+	tc := &tierCache{
+		billingSvc: billing.NewBillingService("billing", srv.Client()),
+		tiers:      map[string]string{},
+	}
+	tc.init()
 	v1api := &V1{
 		accsvc:         authpb.NewAccountsService("auth", srv.Client()),
 		keyRecCache:    &keyRecCache,
@@ -129,12 +136,13 @@ func NewHandler(srv *service.Service) *V1 {
 		usageCache: &usageCache{
 			usagesvc: usage.NewUsageService("usage", srv.Client()),
 		},
-		alerts:  alertpb.NewAlertService("alert", srv.Client()),
-		limiter: &limiter{c: rc},
-		config:  conf,
-		projSvc: projects.NewProjectsService("projects", srv.Client()),
+		alerts:    alertpb.NewAlertService("alert", srv.Client()),
+		limiter:   &limiter{c: rc},
+		config:    conf,
+		projSvc:   projects.NewProjectsService("projects", srv.Client()),
+		tierCache: tc,
 	}
-	go v1api.consumeEvents()
+	v1api.consumeEvents()
 	return v1api
 }
 
@@ -342,7 +350,12 @@ func (v1 *V1) verifyCallAllowed(ctx context.Context, apiRec *apiKeyRecord, reqUR
 
 	limitChan := make(chan error)
 	go func() {
-		limitChan <- v1.limiter.incr(apiRec.UserID, v1.config.RateLimit)
+		tier, err := v1.tierCache.getTier(ctx, apiRec.UserID)
+		if err != nil {
+			log.Errorf("Error getting tier %s", err)
+			limitChan <- err
+		}
+		limitChan <- v1.limiter.incr(apiRec.UserID, v1.config.RateLimits[tier])
 	}()
 
 	if apiRec.Status == keyStatusBlocked {

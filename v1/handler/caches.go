@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	balance "github.com/m3o/services/balance/proto"
+	billing "github.com/m3o/services/billing/proto"
 	publicapi "github.com/m3o/services/publicapi/proto"
 	usage "github.com/m3o/services/usage/proto"
 	"github.com/micro/micro/v3/service/client"
@@ -144,4 +145,62 @@ func (u *usageCache) getMonthlyUsageTotal(ctx context.Context, userID string, ap
 		return nil, nil, err
 	}
 	return rsp.Requests, rsp.Quotas, nil
+}
+
+type tierCache struct {
+	sync.RWMutex
+	billingSvc billing.BillingService
+	tiers      map[string]string
+}
+
+func (t *tierCache) getTier(ctx context.Context, userID string) (string, error) {
+	t.RLock()
+	tier, ok := t.tiers[userID]
+	t.RUnlock()
+	if ok {
+		return tier, nil
+	}
+	return t.loadTier(ctx, userID)
+}
+
+func (t *tierCache) loadTier(ctx context.Context, userID string) (string, error) {
+	rsp, err := t.billingSvc.ReadAccount(ctx, &billing.ReadAccountRequest{
+		AdminId: userID,
+	}, client.WithAuthToken())
+	if err != nil {
+		return "", err
+	}
+	t.Lock()
+	t.tiers[userID] = rsp.BillingAccount.Subscriptions[0].Id
+	defer t.Unlock()
+	return t.tiers[userID], nil
+}
+
+func (t *tierCache) init() error {
+	// load up the cache and periodically refresh
+	load := func() error {
+		ctx := context.Background()
+		t.RLock()
+		keys := make([]string, len(t.tiers))
+		i := 0
+		for k, _ := range t.tiers {
+			keys[i] = k
+			i++
+		}
+		t.RUnlock()
+		for _, id := range keys {
+			t.loadTier(ctx, id)
+		}
+		return nil
+	}
+	if err := load(); err != nil {
+		return err
+	}
+	go func() {
+		for {
+			time.Sleep(10 * time.Minute)
+			load()
+		}
+	}()
+	return nil
 }

@@ -9,6 +9,8 @@ import (
 	"github.com/go-redis/redismock/v8"
 	balance "github.com/m3o/services/balance/proto"
 	balancefake "github.com/m3o/services/balance/proto/fakes"
+	billing "github.com/m3o/services/billing/proto"
+	"github.com/m3o/services/billing/proto/fakes"
 	publicapi "github.com/m3o/services/publicapi/proto"
 	publicapifake "github.com/m3o/services/publicapi/proto/fakes"
 	usage "github.com/m3o/services/usage/proto"
@@ -31,6 +33,7 @@ func TestCallVerification(t *testing.T) {
 		totalFreeCount int64
 		balanceZero    bool
 		ratelimit      bool
+		tier           string
 	}{
 		{
 			key: &apiKeyRecord{
@@ -234,6 +237,22 @@ func TestCallVerification(t *testing.T) {
 			err:       errors.New("v1.blocked", "Too Many Requests", 429),
 			ratelimit: true,
 		},
+		{
+			key: &apiKeyRecord{
+				ID:        "id",
+				ApiKey:    "apikey",
+				Scopes:    []string{"*"},
+				UserID:    "userid",
+				AccID:     "accid",
+				Namespace: "micro",
+				Token:     "token",
+				Status:    keyStatusActive,
+			},
+			name:      "Not rate limited pro tier",
+			priceRet:  "free",
+			ratelimit: true,
+			tier:      "pro",
+		},
 	}
 
 	for _, tc := range tcs {
@@ -274,6 +293,15 @@ func TestCallVerification(t *testing.T) {
 					}, nil
 				},
 			}
+			tierID := "free"
+			if len(tc.tier) > 0 {
+				tierID = tc.tier
+			}
+			fakeBilling := fakes.FakeBillingService{
+				ReadAccountStub: func(ctx context.Context, request *billing.ReadAccountRequest, option ...muclient.CallOption) (*billing.ReadAccountResponse, error) {
+					return &billing.ReadAccountResponse{BillingAccount: &billing.BillingAccount{Subscriptions: []*billing.Subscription{{Id: tierID}}}}, nil
+				},
+			}
 
 			var incrVal int64 = 1
 			if tc.ratelimit {
@@ -297,10 +325,18 @@ func TestCallVerification(t *testing.T) {
 				},
 				limiter: &limiter{c: rc},
 				config: cfg{
-					RateLimit: 100,
+					RateLimits: map[string]int64{
+						"free": 100,
+						"pro":  200,
+					},
+				},
+				tierCache: &tierCache{
+					tiers:      map[string]string{},
+					billingSvc: &fakeBilling,
 				},
 			}
 			v1api.publicapiCache.init()
+			v1api.tierCache.init()
 
 			pr, err := v1api.verifyCallAllowed(context.Background(), tc.key, "/v1/helloworld/Call")
 			if tc.err == nil {

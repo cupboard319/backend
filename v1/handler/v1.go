@@ -530,6 +530,8 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) (retErr error)
 		return errUnauthorized
 	}
 
+	logger.Infof("Metadata is %v", md)
+
 	key, apiRec, err := v1.readAPIRecordByAPIKey(ctx, md["Authorization"])
 	if err != nil {
 		return err

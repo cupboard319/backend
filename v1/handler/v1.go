@@ -530,6 +530,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) error {
 		return errUnauthorized
 	}
 
+	logger.Infof("Meta %v", md)
 	authKey := md["Authorization"]
 	if len(authKey) == 0 {
 		authKey = md["Sec-Websocket-Protocol"]
@@ -537,6 +538,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) error {
 			return errUnauthorized
 		}
 	}
+	logger.Infof("Checking authKey %s", authKey)
 
 	key, apiRec, err := v1.readAPIRecordByAPIKey(ctx, authKey)
 	if err != nil {

@@ -537,6 +537,7 @@ func (v1 *V1) Endpoint(ctx context.Context, stream server.Stream) error {
 		if len(authKey) == 0 {
 			return errUnauthorized
 		}
+		authKey = "Bearer " + authKey
 	}
 	logger.Infof("Checking authKey %s", authKey)
 

@@ -44,6 +44,7 @@ func serveStream(ctx context.Context, stream server.Stream, service, endpoint st
 	if !ok {
 		return errInternal
 	}
+	logger.Infof("Stream meta %v", md)
 	if isWebSocket(md) {
 		return serveWebsocket(ctx, stream, service, endpoint, svcs, apiRec, price)
 	}
